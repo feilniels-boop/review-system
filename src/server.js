@@ -57,16 +57,67 @@ app.get("/review", (req, res) => {
     });
   }
 
+  // GOOD REVIEW → REDIRECT
   if (rating >= 4) {
     return res.redirect("https://www.trustpilot.com/review/jysk.dk");
   }
 
-  return res.status(200).json({
-    success: true,
-    message: "Feedback received",
-    internal: true,
-    data: req.query,
-  });
+  // BAD REVIEW → SHOW FEEDBACK PAGE
+  return res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Feedback</title>
+        <style>
+          body {
+            font-family: Arial;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #f5f5f5;
+          }
+          .box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+          }
+          textarea {
+            width: 100%;
+            height: 100px;
+            margin-top: 10px;
+          }
+          button {
+            margin-top: 15px;
+            padding: 10px;
+            width: 100%;
+            background: black;
+            color: white;
+            border: none;
+            cursor: pointer;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="box">
+          <h2>We're sorry 😔</h2>
+          <p>What went wrong?</p>
+
+          <form method="POST" action="/feedback">
+            <input type="hidden" name="rating" value="${rating}" />
+            <input type="hidden" name="order_id" value="${req.query.order_id || ""}" />
+            <input type="hidden" name="domain" value="${req.query.domain || ""}" />
+
+            <textarea name="message" placeholder="Tell us more..." required></textarea>
+
+            <button type="submit">Send feedback</button>
+          </form>
+        </div>
+      </body>
+    </html>
+  `);
 });
 
 app.get("/ping", (req, res) => {
@@ -769,68 +820,26 @@ app.get("/feedback", (req, res) => {
   res.type("html").send(html);
 });
 
-/**
- * POST /feedback — JSON or form body. Email via Resend when configured; otherwise logs.
- */
-app.post("/feedback", async (req, res) => {
-  const isJson = req.is("application/json");
-  const ratingRaw = req.body?.rating;
-  const messageRaw = req.body?.message;
-  const order_idRaw = req.body?.order_id;
+app.post("/feedback", (req, res) => {
+  const { rating, message, order_id, domain } = req.body;
 
-  const rating = parseStarRating(ratingRaw);
-  if (rating === null) {
-    if (isJson) {
-      return res.status(400).json({
-        success: false,
-        error: 'Body must include "rating" as an integer from 1 to 5.',
-      });
-    }
-    return res.status(400).send("Invalid rating.");
-  }
+  console.log("FEEDBACK RECEIVED", {
+    rating,
+    message,
+    order_id,
+    domain,
+    at: new Date().toISOString(),
+  });
 
-  if (typeof messageRaw !== "string" || messageRaw.trim().length === 0) {
-    if (isJson) {
-      return res.status(400).json({
-        success: false,
-        error: 'Body must include a non-empty string "message".',
-      });
-    }
-    return res.status(400).send("Message is required.");
-  }
-
-  if (typeof order_idRaw !== "string" || order_idRaw.trim().length === 0) {
-    if (isJson) {
-      return res.status(400).json({
-        success: false,
-        error: 'Body must include a non-empty string "order_id".',
-      });
-    }
-    return res.status(400).send("Order ID is required.");
-  }
-
-  const message = messageRaw.trim();
-  const order_id = order_idRaw.trim();
-  if (message.length > 10000) {
-    if (isJson) {
-      return res.status(400).json({
-        success: false,
-        error: '"message" must be at most 10000 characters.',
-      });
-    }
-    return res.status(400).send("Message too long.");
-  }
-
-  await sendFeedbackEmail({ rating, message, order_id });
-
-  if (isJson) {
-    return res.json({ success: true });
-  }
-  const q = new URLSearchParams();
-  q.set("thanks", "1");
-  q.set("rating", String(rating));
-  q.set("order_id", order_id);
-  return res.redirect(303, `/feedback?${q.toString()}`);
+  return res.send(`
+    <!DOCTYPE html>
+    <html>
+      <body style="font-family: Arial; text-align: center; padding-top: 100px;">
+        <h2>Thanks for your feedback 🙏</h2>
+        <p>We'll use this to improve.</p>
+      </body>
+    </html>
+  `);
 });
 
 /**
