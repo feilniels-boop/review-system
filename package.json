@@ -2,7 +2,6 @@
   "name": "review-sentiment-api",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
