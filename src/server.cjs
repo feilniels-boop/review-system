@@ -1,9 +1,8 @@
 const express = require("express");
-const dotenv = require("dotenv");
 const path = require("path");
 const fs = require("fs");
 
-dotenv.config();
+require("dotenv").config();
 
 const app = express();
 
@@ -25,7 +24,19 @@ app.get("/review", (req, res) => {
       return res.redirect("https://www.trustpilot.com/review/jysk.dk");
     }
 
-    return res.send("LOW RATING");
+    return res.send(`
+      <html>
+        <body>
+          <h1>Hjælp os med at blive bedre</h1>
+          <p>Hvad gik galt?</p>
+          <form method="POST" action="/feedback">
+            <input type="hidden" name="rating" value="${rating}" />
+            <textarea name="message" placeholder="Beskriv din oplevelse..."></textarea>
+            <button type="submit">Send feedback</button>
+          </form>
+        </body>
+      </html>
+    `);
   } catch (err) {
     console.error("REVIEW ERROR:", err);
     return res.status(500).send("Error");
