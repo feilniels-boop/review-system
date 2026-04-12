@@ -25,18 +25,31 @@ app.get("/review", (req, res) => {
     }
 
     return res.send(`
-      <html>
-        <body>
-          <h1>Hjælp os med at blive bedre</h1>
-          <p>Hvad gik galt?</p>
-          <form method="POST" action="/feedback">
-            <input type="hidden" name="rating" value="${rating}" />
-            <textarea name="message" placeholder="Beskriv din oplevelse..."></textarea>
-            <button type="submit">Send feedback</button>
-          </form>
-        </body>
-      </html>
-    `);
+
+<html>
+  <body style="font-family: sans-serif; text-align: center; padding: 40px;">
+    <h1>Hjælp os med at blive bedre</h1>
+    <p>Hvad gik galt?</p>
+
+<form method="POST" action="/feedback">
+  <input type="hidden" name="rating" value="${rating}" />
+  
+  <textarea 
+    name="message" 
+    placeholder="Beskriv din oplevelse..."
+    style="width: 300px; height: 100px;"
+  ></textarea>
+
+  <br><br>
+
+  <button type="submit">
+    Send feedback
+  </button>
+</form>
+
+  </body>
+</html>
+`);
   } catch (err) {
     console.error("REVIEW ERROR:", err);
     return res.status(500).send("Error");
