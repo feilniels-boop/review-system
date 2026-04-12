@@ -1,7 +1,6 @@
-import "dotenv/config";
+console.log("STARTING SERVER...");
 
-const VERSION = "DEPLOY-" + (process.env.GIT_COMMIT_SHA || "NO_SHA") + "-" + new Date().toISOString();
-console.log("SERVER VERSION:", VERSION);
+import "dotenv/config";
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -40,21 +39,20 @@ const REVIEW_INVITE_EMAIL_PATH = path.join(
  */
 
 const app = express();
+
 app.use(express.json());
-app.use(express.urlencoded({ extended: true, limit: "64kb" }));
+app.use(express.urlencoded({ extended: true }));
 
 app.get("/review", (req, res) => {
   console.log("REVIEW ROUTE HIT");
 
-  const rating = Number(req.query.rating);
-  const order_id = req.query.order_id;
-  const domain = req.query.domain;
+  const { rating, order_id, domain } = req.query;
 
   if (!rating || !order_id) {
     return res.status(400).send("Missing params");
   }
 
-  if (rating <= 3) {
+  if (Number(rating) <= 3) {
     return res.redirect(`/feedback?rating=${rating}&order_id=${order_id}`);
   }
 
@@ -62,11 +60,12 @@ app.get("/review", (req, res) => {
     return res.status(400).send("Missing domain");
   }
 
-  const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const rawDomain = Array.isArray(domain) ? domain[0] : domain;
+  const cleanDomain = String(rawDomain ?? "")
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "");
 
-  const trustpilotUrl = `https://www.trustpilot.com/review/${cleanDomain}`;
-
-  return res.redirect(trustpilotUrl);
+  return res.redirect(`https://www.trustpilot.com/review/${cleanDomain}`);
 });
 
 /**
@@ -866,7 +865,13 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+const PORT = process.env.PORT;
+
+if (!PORT) {
+  console.error("PORT is missing!");
+  process.exit(1);
+}
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("SERVER RUNNING ON PORT:", PORT);
 });
