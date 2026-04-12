@@ -71,16 +71,39 @@ function normalizeScalarQueryParam(v) {
 }
 
 /**
- * Strip protocol, leading www., and path — domain for Trustpilot /review/{host} only.
- * @param {unknown} domain
- * @returns {string}
+ * Normalize user input to a single hostname for Trustpilot:
+ * `https://www.jysk.dk/path?q=1` → `jysk.dk`
+ *
+ * Strips protocol, path, query, fragment, and port; lowercases; removes leading `www.`.
+ * @param {unknown} input
+ * @returns {string} hostname only, or "" if unparseable
  */
-function normalizeDomain(domain) {
-  return String(domain ?? "")
-    .replace(/^https?:\/\//i, "")
-    .replace(/^www\./i, "")
-    .split("/")[0]
-    .trim();
+function normalizeDomain(input) {
+  let s = String(input ?? "").trim();
+  if (!s) {
+    return "";
+  }
+
+  if (s.startsWith("//")) {
+    s = s.slice(2);
+  }
+
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(s)) {
+    s = `https://${s}`;
+  }
+
+  let hostname;
+  try {
+    hostname = new URL(s).hostname;
+  } catch {
+    return "";
+  }
+
+  hostname = hostname.toLowerCase();
+  if (hostname.startsWith("www.")) {
+    hostname = hostname.slice(4);
+  }
+  return hostname.replace(/\.+$/g, "");
 }
 
 /**
@@ -618,13 +641,52 @@ app.get("/all-reviews", async (_req, res) => {
   res.json({ success: true, data: rows });
 });
 
-/** TEMP: debug-only — restore star routing + Trustpilot redirects when deploy is verified. */
 app.get("/review", (req, res) => {
-  return res.send({
-    message: "DEBUG ACTIVE",
-    version: VERSION,
-    query: req.query,
-  });
+  console.log("REVIEW ROUTE HIT");
+
+  const rating = Number(req.query.rating);
+  const order_id = req.query.order_id;
+  const domainQ = req.query.domain;
+
+  if (!rating || !order_id) {
+    return res.status(400).json({
+      success: false,
+      error: "Missing rating or order_id",
+    });
+  }
+
+  // 1–3 → feedback
+  if (rating <= 3) {
+    return res.redirect(
+      302,
+      `/feedback?rating=${rating}&order_id=${order_id}`,
+    );
+  }
+
+  // 4–5 → Trustpilot
+  const domainRaw = normalizeScalarQueryParam(domainQ);
+
+  if (!domainRaw) {
+    return res.status(400).json({
+      success: false,
+      error: 'Query must include "domain" for ratings 4 and 5.',
+    });
+  }
+
+  const cleanDomain = normalizeDomain(domainRaw);
+
+  if (!cleanDomain || !isValidDomain(cleanDomain)) {
+    return res.status(400).json({
+      success: false,
+      error: "Invalid domain",
+    });
+  }
+
+  const finalUrl = `https://www.trustpilot.com/review/${cleanDomain}`;
+
+  console.log("[Trustpilot] redirect:", finalUrl);
+
+  return res.redirect(302, finalUrl);
 });
 
 app.get("/feedback", (req, res) => {
@@ -641,10 +703,12 @@ app.get("/feedback", (req, res) => {
   if (rating !== null && rating >= 4) {
     const domainRaw = normalizeScalarQueryParam(req.query?.domain);
     const cleanDomain = domainRaw ? normalizeDomain(domainRaw) : "";
+    console.log("[Trustpilot] raw domain:", domainRaw || "(empty)");
+    console.log("[Trustpilot] cleaned domain:", cleanDomain || "(empty)");
     if (cleanDomain && isValidDomain(cleanDomain)) {
-      const targetUrl = `https://www.trustpilot.com/review/${cleanDomain}`;
-      console.log("Redirecting to:", targetUrl);
-      return res.redirect(302, targetUrl);
+      const finalUrl = `https://www.trustpilot.com/review/${cleanDomain}`;
+      console.log("[Trustpilot] final redirect URL:", finalUrl);
+      return res.redirect(302, finalUrl);
     }
   }
 
