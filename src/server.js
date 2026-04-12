@@ -40,23 +40,33 @@ const REVIEW_INVITE_EMAIL_PATH = path.join(
  */
 
 const app = express();
-app.use(express.json({ limit: "64kb" }));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true, limit: "64kb" }));
 
-app.get("/", (req, res) => {
-  res.send("DEPLOY CHECK: " + VERSION);
-});
+app.get("/review", (req, res) => {
+  console.log("REVIEW ROUTE HIT");
 
-app.get("/version", (req, res) => {
-  res.json({ version: VERSION });
-});
+  const rating = Number(req.query.rating);
+  const order_id = req.query.order_id;
+  const domain = req.query.domain;
 
-app.get("/debug", (req, res) => {
-  res.json({
-    version: VERSION,
-    env: process.env.NODE_ENV,
-    commit: process.env.GIT_COMMIT_SHA || null,
-  });
+  if (!rating || !order_id) {
+    return res.status(400).send("Missing params");
+  }
+
+  if (rating <= 3) {
+    return res.redirect(`/feedback?rating=${rating}&order_id=${order_id}`);
+  }
+
+  if (!domain) {
+    return res.status(400).send("Missing domain");
+  }
+
+  const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+  const trustpilotUrl = `https://www.trustpilot.com/review/${cleanDomain}`;
+
+  return res.redirect(trustpilotUrl);
 });
 
 /**
@@ -641,54 +651,6 @@ app.get("/all-reviews", async (_req, res) => {
   res.json({ success: true, data: rows });
 });
 
-app.get("/review", (req, res) => {
-  console.log("REVIEW ROUTE HIT");
-
-  const rating = Number(req.query.rating);
-  const order_id = req.query.order_id;
-  const domainQ = req.query.domain;
-
-  if (!rating || !order_id) {
-    return res.status(400).json({
-      success: false,
-      error: "Missing rating or order_id",
-    });
-  }
-
-  // 1–3 → feedback
-  if (rating <= 3) {
-    return res.redirect(
-      302,
-      `/feedback?rating=${rating}&order_id=${order_id}`,
-    );
-  }
-
-  // 4–5 → Trustpilot
-  const domainRaw = normalizeScalarQueryParam(domainQ);
-
-  if (!domainRaw) {
-    return res.status(400).json({
-      success: false,
-      error: 'Query must include "domain" for ratings 4 and 5.',
-    });
-  }
-
-  const cleanDomain = normalizeDomain(domainRaw);
-
-  if (!cleanDomain || !isValidDomain(cleanDomain)) {
-    return res.status(400).json({
-      success: false,
-      error: "Invalid domain",
-    });
-  }
-
-  const finalUrl = `https://www.trustpilot.com/review/${cleanDomain}`;
-
-  console.log("[Trustpilot] redirect:", finalUrl);
-
-  return res.redirect(302, finalUrl);
-});
-
 app.get("/feedback", (req, res) => {
   const rating = parseStarRating(req.query?.rating);
   const orderIdRaw = req.query?.order_id;
@@ -904,7 +866,7 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-const port = Number(process.env.PORT) || 3000;
-app.listen(port, () => {
-  console.log(`Review classifier listening on http://localhost:${port}`);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Server running on port", PORT);
 });
