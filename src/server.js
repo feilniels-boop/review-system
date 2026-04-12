@@ -1,15 +1,14 @@
-const VERSION = "FORCE-DEPLOY-" + new Date().toISOString();
+import "dotenv/config";
+
+const VERSION = "DEPLOY-" + (process.env.GIT_COMMIT_SHA || "NO_SHA") + "-" + new Date().toISOString();
 console.log("SERVER VERSION:", VERSION);
 
-import dotenv from "dotenv";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
-
-dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REVIEW_INVITE_EMAIL_PATH = path.join(
@@ -50,6 +49,14 @@ app.get("/", (req, res) => {
 
 app.get("/version", (req, res) => {
   res.json({ version: VERSION });
+});
+
+app.get("/debug", (req, res) => {
+  res.json({
+    version: VERSION,
+    env: process.env.NODE_ENV,
+    commit: process.env.GIT_COMMIT_SHA || null,
+  });
 });
 
 /**
