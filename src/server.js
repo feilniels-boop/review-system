@@ -1,10 +1,16 @@
-import dotenv from "dotenv";
-dotenv.config();
+// Railway deploy sanity: VERSION changes each process start (timestamp).
+const VERSION = "FORCE-DEPLOY-" + new Date().toISOString();
+console.log("SERVER VERSION:", VERSION);
 
+import dotenv from "dotenv";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
+import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
+
+dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REVIEW_INVITE_EMAIL_PATH = path.join(
@@ -13,8 +19,6 @@ const REVIEW_INVITE_EMAIL_PATH = path.join(
   "templates",
   "review-invite-email.html",
 );
-import OpenAI from "openai";
-import { createClient } from "@supabase/supabase-js";
 /**
  * @typedef {{
  *   sentiment: "positive" | "negative";
@@ -41,9 +45,75 @@ const app = express();
 app.use(express.json({ limit: "64kb" }));
 app.use(express.urlencoded({ extended: true, limit: "64kb" }));
 
-const TRUSTPILOT_REVIEW_URL =
-  String(process.env.TRUSTPILOT_REVIEW_URL ?? "").trim() ||
-  "https://www.trustpilot.com/evaluate/example.com";
+app.get("/", (req, res) => {
+  res.send("DEPLOY CHECK: " + VERSION);
+});
+
+app.get("/version", (req, res) => {
+  res.json({ version: VERSION });
+});
+
+/**
+ * @param {unknown} v
+ */
+function normalizeScalarQueryParam(v) {
+  if (v === undefined || v === null) {
+    return "";
+  }
+  const s = Array.isArray(v) ? v[0] : v;
+  return String(s ?? "").trim();
+}
+
+/**
+ * Strip protocol, leading www., and path — domain for Trustpilot /review/{host} only.
+ * @param {unknown} domain
+ * @returns {string}
+ */
+function normalizeDomain(domain) {
+  return String(domain ?? "")
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .split("/")[0]
+    .trim();
+}
+
+/**
+ * @param {string} hostname output of normalizeDomain() (no leading www.)
+ * @returns {boolean}
+ */
+function isValidDomain(hostname) {
+  if (!hostname || typeof hostname !== "string") {
+    return false;
+  }
+  if (hostname.length > 253) {
+    return false;
+  }
+  if (!/^[a-z0-9.-]+$/i.test(hostname)) {
+    return false;
+  }
+  if (hostname.includes("..")) {
+    return false;
+  }
+  const labels = hostname.split(".");
+  if (labels.length < 2) {
+    return false;
+  }
+  for (const lab of labels) {
+    if (lab.length < 1 || lab.length > 63) {
+      return false;
+    }
+    if (!/^[a-z0-9-]+$/i.test(lab)) {
+      return false;
+    }
+    if (lab.startsWith("-") || lab.endsWith("-")) {
+      return false;
+    }
+  }
+  if (labels[labels.length - 1].length < 2) {
+    return false;
+  }
+  return true;
+}
 
 /**
  * @param {{ rating: number; message: string; order_id: string }} payload
@@ -116,6 +186,42 @@ function escapeHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/**
+ * @param {string} order_id
+ * @param {number} starNum
+ */
+function feedbackPageHref(order_id, starNum) {
+  const q = new URLSearchParams();
+  q.set("rating", String(starNum));
+  const o = String(order_id ?? "").trim();
+  if (o) {
+    q.set("order_id", o);
+  }
+  return `/feedback?${q.toString()}`;
+}
+
+/**
+ * @param {number | null} current
+ * @param {string} order_id
+ * @param {boolean} readonly
+ */
+function renderStarPicker(current, order_id, readonly) {
+  const groupAria = readonly ? "Din vurdering (kan ikke ændres)" : "Vælg antal stjerner";
+  let out = `<div role="group" aria-label="${groupAria}" style="display:flex;gap:0.25rem;align-items:center;flex-wrap:wrap;">`;
+  for (let i = 1; i <= 5; i += 1) {
+    const filled = current !== null && i <= current;
+    const color = filled ? "#f59e0b" : "#d1d5db";
+    if (readonly) {
+      out += `<span style="font-size:2rem;line-height:1;color:${color};" aria-hidden="true">★</span>`;
+    } else {
+      const href = escapeHtml(feedbackPageHref(order_id, i));
+      out += `<a class="star-link" href="${href}" style="font-size:2rem;line-height:1;color:${color};text-decoration:none;transition:transform 0.12s ease;" aria-label="${i} stjerner">★</a>`;
+    }
+  }
+  out += "</div>";
+  return out;
 }
 
 const openai = new OpenAI({
@@ -506,51 +612,14 @@ app.get("/all-reviews", async (_req, res) => {
   res.json({ success: true, data: rows });
 });
 
-/**
- * Star-click routing: rating alone decides Trustpilot vs internal feedback (no AI).
- * GET /review?rating=4&order_id=SHOP-123
- */
+/** TEMP: debug-only — restore star routing + Trustpilot redirects when deploy is verified. */
 app.get("/review", (req, res) => {
-  const rating = parseStarRating(req.query?.rating);
-  if (rating === null) {
-    return res.status(400).json({
-      success: false,
-      error: 'Query must include "rating" as an integer from 1 to 5.',
-    });
-  }
-
-  const orderIdRaw = req.query?.order_id;
-  const order_id =
-    orderIdRaw === undefined || orderIdRaw === null
-      ? ""
-      : Array.isArray(orderIdRaw)
-        ? String(orderIdRaw[0] ?? "")
-        : String(orderIdRaw);
-
-  if (rating >= 4) {
-    return res.redirect(302, TRUSTPILOT_REVIEW_URL);
-  }
-
-  const q = new URLSearchParams();
-  q.set("rating", String(rating));
-  if (order_id) {
-    q.set("order_id", order_id);
-  }
-  return res.redirect(302, `/feedback?${q.toString()}`);
+  return res.send({
+    message: "DEBUG ACTIVE",
+    version: VERSION,
+    query: req.query,
+  });
 });
-
-/**
- * @param {number | null} rating
- */
-function starRowHtml(rating) {
-  let out = "";
-  for (let i = 1; i <= 5; i += 1) {
-    const filled = rating !== null && i <= rating;
-    const color = filled ? "#f59e0b" : "#e5e7eb";
-    out += `<span style="font-size:1.75rem;line-height:1;color:${color};" aria-hidden="true">★</span>`;
-  }
-  return out;
-}
 
 app.get("/feedback", (req, res) => {
   const rating = parseStarRating(req.query?.rating);
@@ -563,70 +632,100 @@ app.get("/feedback", (req, res) => {
         : String(orderIdRaw);
   const thanks = String(req.query?.thanks ?? "") === "1";
 
-  const ratingValue = rating !== null ? String(rating) : "";
+  if (rating !== null && rating >= 4) {
+    const domainRaw = normalizeScalarQueryParam(req.query?.domain);
+    const cleanDomain = domainRaw ? normalizeDomain(domainRaw) : "";
+    if (cleanDomain && isValidDomain(cleanDomain)) {
+      const targetUrl = `https://www.trustpilot.com/review/${cleanDomain}`;
+      console.log("Redirecting to:", targetUrl);
+      return res.redirect(302, targetUrl);
+    }
+  }
+
+  if (!String(order_id).trim()) {
+    return res.status(400).type("html").send(`<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Link ugyldigt</title>
+  <style>
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f4f6f8; color:#374151; padding:2rem 1.25rem; max-width:28rem; margin-left:auto; margin-right:auto; }
+    h1 { font-size:1.15rem; margin:0 0 0.75rem 0; color:#111827; }
+    p { margin:0; line-height:1.55; font-size:0.95rem; }
+  </style>
+</head>
+<body>
+  <h1>Dette link virker ikke</h1>
+  <p>Åbn feedback-linket fra den e-mail, vi har sendt dig — så er din ordre med, og vi kan hjælpe dig.</p>
+</body>
+</html>`);
+  }
+
   const orderEsc = escapeHtml(order_id);
+  const ratingValue = rating !== null ? String(rating) : "";
   const ratingEsc = escapeHtml(ratingValue);
-  const stars = starRowHtml(rating);
-  const ratingLabel =
-    rating !== null ? `You selected <strong>${rating} out of 5</strong> stars.` : "We could not load your star rating from this link.";
+
+  /** Mail-flow: 1–3 stjerner fra /review — lås (4–5 går til Trustpilot). */
+  const starsLockedFromMail =
+    !thanks && rating !== null && rating >= 1 && rating <= 3;
+  const starsReadonly = thanks || starsLockedFromMail;
+  const starsHtml = renderStarPicker(rating, order_id, starsReadonly);
+
+  const ratingHint = thanks
+    ? rating !== null
+      ? `<p style="margin:0 0 1rem 0;font-size:0.9rem;line-height:1.5;color:#4b5563;">Din vurdering: <strong>${rating} ud af 5</strong> stjerner.</p>`
+      : ""
+    : rating === null
+      ? `<p style="margin:0 0 1rem 0;font-size:0.9rem;line-height:1.5;color:#4b5563;">Klik på stjernerne for at vælge din vurdering.</p>`
+      : `<p style="margin:0 0 1rem 0;font-size:0.9rem;line-height:1.5;color:#4b5563;">Du har valgt <strong>${rating} ud af 5</strong> stjerner.</p>`;
 
   const successBlock = thanks
-    ? `<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:1rem 1.1rem;margin:0 0 1.5rem 0;" role="status">
-         <p style="margin:0;font-size:0.95rem;line-height:1.5;color:#065f46;font-weight:600;">Thank you — your feedback was received.</p>
-         <p style="margin:0.5rem 0 0 0;font-size:0.9rem;line-height:1.5;color:#047857;">We read every message and use it to improve.</p>
+    ? `<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:1rem 1.1rem;margin:0 0 1.25rem 0;" role="status">
+         <p style="margin:0;font-size:0.95rem;line-height:1.5;color:#065f46;font-weight:600;">Tak – vi har modtaget din feedback.</p>
+         <p style="margin:0.5rem 0 0 0;font-size:0.9rem;line-height:1.5;color:#047857;">Vi læser med og bruger det til at blive bedre.</p>
        </div>`
     : "";
 
   const formBlock =
-    thanks || rating === null || !order_id
+    thanks || rating === null
       ? ""
       : `<form method="post" action="/feedback" style="margin:0;">
     <input type="hidden" name="rating" value="${ratingEsc}" />
     <input type="hidden" name="order_id" value="${orderEsc}" />
-    <label for="msg" style="display:block;font-size:0.9rem;font-weight:600;color:#374151;margin:0 0 0.4rem 0;">What could we have done better?</label>
-    <textarea id="msg" name="message" required maxlength="10000" rows="6" placeholder="Shipping, product quality, support — share anything that would help us do better next time." style="width:100%;box-sizing:border-box;padding:0.85rem 1rem;border:1px solid #d1d5db;border-radius:10px;font-size:1rem;line-height:1.5;font-family:inherit;color:#111827;resize:vertical;min-height:9rem;"></textarea>
-    <button type="submit" style="margin-top:1rem;width:100%;box-sizing:border-box;padding:0.85rem 1.25rem;border:none;border-radius:10px;background:#111827;color:#fff;font-size:1rem;font-weight:600;font-family:inherit;cursor:pointer;">Submit feedback</button>
+    <textarea id="msg" name="message" required maxlength="10000" rows="6" placeholder="Hvad gik galt, og hvad kunne vi gøre bedre?" aria-label="Hvad gik galt, og hvad kunne vi gøre bedre?" style="width:100%;box-sizing:border-box;padding:0.85rem 1rem;border:1px solid #d1d5db;border-radius:10px;font-size:1rem;line-height:1.5;font-family:inherit;color:#111827;resize:vertical;min-height:9rem;"></textarea>
+    <button type="submit" style="margin-top:1rem;width:100%;box-sizing:border-box;padding:0.85rem 1.25rem;border:none;border-radius:10px;background:#111827;color:#fff;font-size:1rem;font-weight:600;font-family:inherit;cursor:pointer;">Send din feedback</button>
   </form>`;
 
-  const missingHint =
-    !thanks && (rating === null || !order_id)
-      ? `<p style="margin:0;font-size:0.9rem;line-height:1.55;color:#6b7280;">Please open the link from your email so your order and rating are included.</p>`
-      : "";
-
   const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="da">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <title>Your feedback</title>
+  <title>Hjælp os med at forbedre din oplevelse</title>
   <style>
     body { margin:0; background:#f4f6f8; color:#111827; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; -webkit-font-smoothing:antialiased; }
     .wrap { max-width:28rem; margin:0 auto; padding:1.75rem 1.15rem 3rem; }
-    .card { background:#fff; border-radius:12px; border:1px solid #e5e7eb; padding:1.5rem 1.35rem 1.6rem; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
-    h1 { margin:0 0 0.35rem 0; font-size:1.35rem; font-weight:600; line-height:1.3; letter-spacing:-0.02em; }
-    .sub { margin:0 0 1.25rem 0; font-size:0.95rem; line-height:1.55; color:#6b7280; }
-    .rating-row { display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem 0.75rem; margin:0 0 1.15rem 0; }
-    .rating-row span[aria-hidden] { letter-spacing:0.12em; }
-    .badge { font-size:0.8rem; font-weight:600; color:#92400e; background:#fffbeb; border:1px solid #fde68a; padding:0.2rem 0.55rem; border-radius:999px; }
+    .card { background:#fff; border-radius:14px; border:1px solid #e5e7eb; padding:1.6rem 1.4rem 1.65rem; box-shadow:0 4px 24px rgba(15,23,42,0.06); }
+    h1 { margin:0 0 0.5rem 0; font-size:1.4rem; font-weight:600; line-height:1.25; letter-spacing:-0.02em; }
+    .sub { margin:0 0 1.35rem 0; font-size:0.95rem; line-height:1.55; color:#6b7280; }
+    .stars-block { margin:0 0 0.25rem 0; }
+    .star-link:focus { outline:2px solid #111827; outline-offset:2px; border-radius:4px; }
+    .star-link:hover { transform:scale(1.08); }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <p style="margin:0 0 0.5rem 0;font-size:0.75rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#9ca3af;">We’re listening</p>
-      <h1>Help us do better</h1>
-      <p class="sub">We’re sorry your experience wasn’t great. A few honest details go a long way.</p>
+      <h1>Hjælp os med at forbedre din oplevelse</h1>
+      <p class="sub">Det ser ud til, at din oplevelse ikke var helt som forventet.<br />Fortæl os hvad der gik galt – vi læser alt feedback og bruger det aktivt til at forbedre os.</p>
       ${successBlock}
-      <div class="rating-row" ${rating === null ? 'style="margin-bottom:0.75rem;"' : ""}>
-        <span class="badge" aria-hidden="true">Your rating</span>
-        <span style="display:flex;align-items:center;gap:0.1rem;" aria-label="${rating !== null ? `Rating ${rating} out of 5 stars` : "Rating unknown"}">${stars}</span>
-      </div>
-      <p style="margin:0 0 1.25rem 0;font-size:0.95rem;line-height:1.55;color:#374151;">${ratingLabel}</p>
-      ${missingHint}
+      <div class="stars-block">${starsHtml}</div>
+      ${ratingHint}
       ${formBlock}
     </div>
-    <p style="margin:1.25rem 0 0 0;text-align:center;font-size:0.8rem;color:#9ca3af;">Secure feedback — we use this only to improve our service.</p>
+    <p style="margin:1.25rem 0 0 0;text-align:center;font-size:0.8rem;color:#9ca3af;">Fortroligt — vi bruger kun din feedback til at gøre oplevelsen bedre.</p>
   </div>
 </body>
 </html>`;
@@ -712,13 +811,17 @@ app.get("/preview/review-invite-email", async (req, res) => {
     const orderId = "1001";
     const brand =
       String(process.env.PREVIEW_BRAND_NAME ?? "").trim() || "Your Brand";
+    const previewDomain =
+      String(process.env.PREVIEW_TRUSTPILOT_DOMAIN ?? "").trim() || "jysk.dk";
     html = html
       .split("{{ BASE_URL }}")
       .join(base)
       .split("{{ order.id }}")
       .join(orderId)
       .split("{{ BRAND_NAME }}")
-      .join(brand);
+      .join(brand)
+      .split("{{ DOMAIN }}")
+      .join(previewDomain);
     res.type("html").send(html);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
