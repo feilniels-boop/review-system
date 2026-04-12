@@ -1,4 +1,3 @@
-// Railway deploy sanity: VERSION changes each process start (timestamp).
 const VERSION = "FORCE-DEPLOY-" + new Date().toISOString();
 console.log("SERVER VERSION:", VERSION);
 
