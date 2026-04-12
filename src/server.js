@@ -1,15 +1,16 @@
+const express = require("express");
+const app = express();
+
 console.log("STARTING SERVER...");
 
-import "dotenv/config";
+require("dotenv").config();
 
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import express from "express";
-import OpenAI from "openai";
-import { createClient } from "@supabase/supabase-js";
+const path = require("node:path");
+const { readFile } = require("node:fs/promises");
+const OpenAIModule = require("openai");
+const OpenAI = OpenAIModule.default || OpenAIModule;
+const { createClient } = require("@supabase/supabase-js");
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REVIEW_INVITE_EMAIL_PATH = path.join(
   __dirname,
   "..",
@@ -38,34 +39,38 @@ const REVIEW_INVITE_EMAIL_PATH = path.join(
  * }} ReviewRecord
  */
 
-const app = express();
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/review", (req, res) => {
-  console.log("REVIEW ROUTE HIT");
+  const rating = Number(req.query.rating);
 
-  const { rating, order_id, domain } = req.query;
+  console.log("REVIEW ROUTE HIT", {
+    rating,
+    query: req.query,
+  });
 
-  if (!rating || !order_id) {
-    return res.status(400).send("Missing params");
+  if (!rating || isNaN(rating)) {
+    return res.status(400).json({
+      success: false,
+      error: "Invalid or missing rating",
+    });
   }
 
-  if (Number(rating) <= 3) {
-    return res.redirect(`/feedback?rating=${rating}&order_id=${order_id}`);
+  if (rating >= 4) {
+    return res.redirect("https://www.trustpilot.com/review/jysk.dk");
   }
 
-  if (!domain) {
-    return res.status(400).send("Missing domain");
-  }
+  return res.status(200).json({
+    success: true,
+    message: "Feedback received",
+    internal: true,
+    data: req.query,
+  });
+});
 
-  const rawDomain = Array.isArray(domain) ? domain[0] : domain;
-  const cleanDomain = String(rawDomain ?? "")
-    .replace(/^https?:\/\//, "")
-    .replace(/\/$/, "");
-
-  return res.redirect(`https://www.trustpilot.com/review/${cleanDomain}`);
+app.get("/ping", (req, res) => {
+  res.send("pong");
 });
 
 /**
@@ -868,7 +873,7 @@ app.get("/health", (_req, res) => {
 const PORT = process.env.PORT;
 
 if (!PORT) {
-  console.error("PORT is missing!");
+  console.error("PORT missing");
   process.exit(1);
 }
 
