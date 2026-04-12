@@ -2,10 +2,10 @@
   "name": "review-sentiment-api",
   "version": "1.0.0",
   "private": true,
-  "main": "src/server.js",
+  "main": "src/server.cjs",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "PORT=3000 node --watch src/server.js"
+    "start": "node src/server.cjs",
+    "dev": "PORT=3000 node --watch src/server.cjs"
   },
   "engines": {
     "node": "18.x"
