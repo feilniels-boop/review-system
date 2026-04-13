@@ -7,6 +7,13 @@ require("dotenv").config();
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const CLIENTS = {
+  "test.dk": {
+    email: "feilniels@gmail.com",
+    trustpilot: "https://trustpilot.com/review/test.dk",
+  },
+};
+
 const app = express();
 
 app.use(express.json());
@@ -256,7 +263,13 @@ Message: ${message}
 
     fs.appendFileSync("feedback.txt", log);
 
-    const recipient = email || process.env.CLIENT_EMAIL;
+    const client = CLIENTS[domain];
+
+    if (!client) {
+      console.error("❌ Unknown domain:", domain);
+    }
+
+    const recipient = client?.email || process.env.CLIENT_EMAIL;
 
     try {
       console.log("📧 Sending email to:", recipient);
