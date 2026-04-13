@@ -1,8 +1,11 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const { Resend } = require("resend");
 
 require("dotenv").config();
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const app = express();
 
@@ -42,6 +45,13 @@ app.get("/review", (req, res) => {
     if (rating >= 4) {
       return res.redirect("https://www.trustpilot.com/review/jysk.dk");
     }
+
+    const domainParam =
+      query.domain == null
+        ? ""
+        : Array.isArray(query.domain)
+          ? String(query.domain[0] || "")
+          : String(query.domain);
 
     return res.send(`
 
@@ -113,6 +123,8 @@ app.get("/review", (req, res) => {
 <form method="POST" action="/feedback">
 
   <input type="hidden" name="rating" value="${rating}" />
+  <input type="hidden" name="domain" value="${domainParam}" />
+  <input type="hidden" name="email" id="email" value="" />
 
   <textarea 
     name="message"
@@ -167,6 +179,12 @@ app.get("/review", (req, res) => {
 
   </div>
 
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const email = params.get("email");
+  document.getElementById("email").value = email || "";
+</script>
+
 </body>
 </html>
 `);
@@ -176,24 +194,7 @@ app.get("/review", (req, res) => {
   }
 });
 
-app.post("/feedback", (req, res) => {
-  try {
-    const { rating, message } = req.body;
-
-    const timestamp = new Date().toISOString();
-
-    const log = `
---- FEEDBACK ---
-Time: ${timestamp}
-Rating: ${rating}
-Message: ${message}
--------------------
-
-`;
-
-    fs.appendFileSync("feedback.txt", log);
-
-    return res.send(`
+const thankYouPageHtml = `
   <!DOCTYPE html>
   <html lang="da">
   <head>
@@ -222,7 +223,55 @@ Message: ${message}
     </div>
   </body>
   </html>
-`);
+`;
+
+app.get("/tak", (req, res) => {
+  return res.send(thankYouPageHtml);
+});
+
+app.post("/feedback", async (req, res) => {
+  try {
+    console.log("🔥 HIT /feedback");
+    console.log("BODY:", req.body);
+    const { rating, message, domain, email } = req.body;
+
+    const timestamp = new Date().toISOString();
+
+    const log = `
+--- FEEDBACK ---
+Time: ${timestamp}
+Rating: ${rating}
+Message: ${message}
+-------------------
+
+`;
+
+    fs.appendFileSync("feedback.txt", log);
+
+    const recipient = email || process.env.CLIENT_EMAIL;
+
+    try {
+      console.log("📧 Sending email to:", recipient);
+
+      const response = await resend.emails.send({
+        from: "onboarding@resend.dev",
+        to: recipient,
+        subject: `New feedback (${rating} stars) from ${domain || "unknown domain"}`,
+        html: `
+    <h2>New Feedback</h2>
+    <p><strong>Rating:</strong> ${rating}</p>
+    <p><strong>Message:</strong> ${message}</p>
+    <p><strong>Domain:</strong> ${domain}</p>
+    <p><strong>Email:</strong> ${email}</p>
+  `,
+      });
+
+      console.log("✅ Resend response:", response);
+    } catch (err) {
+      console.error("❌ Email failed:", err);
+    }
+
+    return res.redirect("/tak");
   } catch (err) {
     console.error("FEEDBACK ERROR:", err);
     return res.status(500).send("Noget gik galt");
