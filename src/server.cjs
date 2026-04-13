@@ -124,7 +124,9 @@ app.get("/review", (req, res) => {
 
   <input type="hidden" name="rating" value="${rating}" />
   <input type="hidden" name="domain" value="${domainParam}" />
-  <input type="hidden" name="email" id="email" value="" />
+  <input type="hidden" name="email" id="email" />
+  <input type="hidden" name="name" id="name" />
+  <input type="hidden" name="order_id" id="order_id" />
 
   <textarea 
     name="message"
@@ -181,8 +183,14 @@ app.get("/review", (req, res) => {
 
 <script>
   const params = new URLSearchParams(window.location.search);
+
   const email = params.get("email");
-  document.getElementById("email").value = email || "";
+  const name = params.get("name");
+  const orderId = params.get("order_id");
+
+  if (email) document.getElementById("email").value = email;
+  if (name) document.getElementById("name").value = name;
+  if (orderId) document.getElementById("order_id").value = orderId;
 </script>
 
 </body>
@@ -233,7 +241,7 @@ app.post("/feedback", async (req, res) => {
   try {
     console.log("🔥 HIT /feedback");
     console.log("BODY:", req.body);
-    const { rating, message, domain, email } = req.body;
+    const { rating, message, domain, email, name, order_id } = req.body;
 
     const timestamp = new Date().toISOString();
 
@@ -258,12 +266,14 @@ Message: ${message}
         to: recipient,
         subject: `New feedback (${rating} stars) from ${domain || "unknown domain"}`,
         html: `
-    <h2>New Feedback</h2>
-    <p><strong>Rating:</strong> ${rating}</p>
-    <p><strong>Message:</strong> ${message}</p>
-    <p><strong>Domain:</strong> ${domain}</p>
-    <p><strong>Email:</strong> ${email}</p>
-  `,
+  <h2>New Feedback</h2>
+  <p><strong>Rating:</strong> ${rating}</p>
+  <p><strong>Message:</strong> ${message}</p>
+  <p><strong>Domain:</strong> ${domain}</p>
+  <p><strong>Customer:</strong> ${name || "N/A"}</p>
+  <p><strong>Email:</strong> ${email || "N/A"}</p>
+  <p><strong>Order ID:</strong> ${order_id || "N/A"}</p>
+`,
       });
 
       console.log("✅ Resend response:", response);
