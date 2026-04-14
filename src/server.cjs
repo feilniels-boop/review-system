@@ -377,8 +377,9 @@ Message: ${message}
     fs.appendFileSync("feedback.txt", log);
 
     CLIENTS = loadClients();
+    const cleanDomain = (domain || "").replace(/^www\./, "");
 
-    const client = CLIENTS[domain];
+    const client = CLIENTS[cleanDomain];
 
     if (!client) {
       console.error("❌ Unknown domain:", domain);
