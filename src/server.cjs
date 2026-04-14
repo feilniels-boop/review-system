@@ -390,9 +390,14 @@ Message: ${message}
     try {
       console.log("📧 Sending email to:", recipient);
 
-      if (resend) {
+      if (!resend) {
+        console.error("❌ Email skipped: Resend is not initialized");
+      } else if (!recipient) {
+        console.error("❌ Email skipped: no recipient configured");
+      } else {
+        const fromAddress = process.env.RESEND_FROM || "onboarding@resend.dev";
         const response = await resend.emails.send({
-          from: "onboarding@resend.dev",
+          from: fromAddress,
           to: recipient,
           subject: `New feedback (${rating} stars) from ${domain || "unknown domain"}`,
           html: `
@@ -406,7 +411,11 @@ Message: ${message}
 `,
         });
 
-        console.log("✅ Resend response:", response);
+        if (response?.error) {
+          console.error("❌ Resend API error:", response.error);
+        } else {
+          console.log("✅ Resend response:", response);
+        }
       }
     } catch (err) {
       console.error("❌ Email failed:", err);
