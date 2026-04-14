@@ -68,14 +68,16 @@ app.get("/review", (req, res) => {
     }
 
     CLIENTS = loadClients();
-    const client = CLIENTS[domain];
+    const cleanDomain = domain.replace(/^www\./, "");
+    const client = CLIENTS[cleanDomain];
 
     if (r >= 4) {
       if (client && client.trustpilot) {
         return res.redirect(client.trustpilot);
       }
 
-      return res.redirect("https://trustpilot.com");
+      const fallbackUrl = `https://dk.trustpilot.com/evaluate/www.${cleanDomain}`;
+      return res.redirect(fallbackUrl);
     }
 
     const domainParam =
@@ -300,8 +302,9 @@ app.post(
     }
 
     const clients = loadClients();
+    const cleanDomain = domain.replace(/^www\./, "");
 
-    clients[domain] = {
+    clients[cleanDomain] = {
       email,
       trustpilot,
     };
