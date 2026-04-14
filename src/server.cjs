@@ -7,12 +7,23 @@ require("dotenv").config();
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const CLIENTS = {
-  "test.dk": {
-    email: "feilniels@gmail.com",
-    trustpilot: "https://trustpilot.com/review/test.dk",
-  },
-};
+const CLIENTS_PATH = path.join(__dirname, "../clients.json");
+const FEEDBACK_LOG_PATH = path.join(__dirname, "../feedback.json");
+
+function loadClients() {
+  try {
+    return JSON.parse(fs.readFileSync(CLIENTS_PATH, "utf8"));
+  } catch (err) {
+    console.error("❌ Failed to load clients.json", err);
+    return {};
+  }
+}
+
+function saveClients(data) {
+  fs.writeFileSync(CLIENTS_PATH, JSON.stringify(data, null, 2));
+}
+
+let CLIENTS = loadClients();
 
 const app = express();
 
@@ -43,14 +54,21 @@ app.get("/r", (req, res) => {
 app.get("/review", (req, res) => {
   try {
     const query = req.query || {};
-    const rating = Number(query.rating);
+    const { rating, domain } = req.query;
+    const r = Number(rating);
 
-    if (!rating || isNaN(rating)) {
+    if (!r || isNaN(r)) {
       return res.status(400).send("Invalid rating");
     }
 
-    if (rating >= 4) {
-      return res.redirect("https://www.trustpilot.com/review/jysk.dk");
+    CLIENTS = loadClients();
+    const client = CLIENTS[domain];
+
+    if (r >= 4) {
+      if (client && client.trustpilot) {
+        return res.redirect(client.trustpilot);
+      }
+      return res.redirect("https://trustpilot.com");
     }
 
     const domainParam =
@@ -114,8 +132,8 @@ app.get("/review", (req, res) => {
 <!-- ⭐ STARS -->
 <div style="margin-bottom:10px; font-size:26px; letter-spacing:3px;">
   ${
-    '<span style="color:#f5b301;">★</span>'.repeat(Math.max(0, Math.min(5, rating))) +
-    '<span style="color:#e0e0e0;">★</span>'.repeat(5 - Math.max(0, Math.min(5, rating)))
+    '<span style="color:#f5b301;">★</span>'.repeat(Math.max(0, Math.min(5, r))) +
+    '<span style="color:#e0e0e0;">★</span>'.repeat(5 - Math.max(0, Math.min(5, r)))
   }
 </div>
 
@@ -124,12 +142,12 @@ app.get("/review", (req, res) => {
   font-size:13px;
   margin-bottom:20px;
 ">
-  Du har valgt <strong>${rating}</strong> ud af 5 stjerner
+  Du har valgt <strong>${r}</strong> ud af 5 stjerner
 </p>
 
 <form method="POST" action="/feedback">
 
-  <input type="hidden" name="rating" value="${rating}" />
+  <input type="hidden" name="rating" value="${r}" />
   <input type="hidden" name="domain" value="${domainParam}" />
   <input type="hidden" name="email" id="email" />
   <input type="hidden" name="name" id="name" />
@@ -244,11 +262,96 @@ app.get("/tak", (req, res) => {
   return res.send(thankYouPageHtml);
 });
 
+app.get("/admin", (req, res) => {
+  const key = req.query.key;
+  if (key !== process.env.ADMIN_KEY) {
+    return res.status(401).send("Unauthorized");
+  }
+  res.send(`
+    <h2>Add Client</h2>
+    <form method="POST" action="/admin?key=${encodeURIComponent(key)}">
+      <input name="domain" placeholder="domain (e.g. test.dk)" required />
+      <input name="email" placeholder="email" required />
+      <input name="trustpilot" placeholder="trustpilot link" required />
+      <button type="submit">Save</button>
+    </form>
+  `);
+});
+
+app.post(
+  "/admin",
+  express.urlencoded({ extended: true }),
+  (req, res) => {
+    const key = req.query.key;
+    if (key !== process.env.ADMIN_KEY) {
+      return res.status(401).send("Unauthorized");
+    }
+    const { domain, email, trustpilot } = req.body;
+
+    if (!domain || !email) {
+      return res.send("Missing fields");
+    }
+
+    const clients = loadClients();
+
+    clients[domain] = {
+      email,
+      trustpilot,
+    };
+
+    saveClients(clients);
+
+    res.send("✅ Client saved");
+  }
+);
+
+app.get("/feedbacks", (req, res) => {
+  const key = req.query.key;
+  if (key !== process.env.ADMIN_KEY) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  try {
+    const raw = fs.readFileSync(FEEDBACK_LOG_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+    let data = Array.isArray(parsed) ? parsed : [];
+    const domainFilter = req.query.domain;
+    if (domainFilter) {
+      data = data.filter((entry) => entry.domain === domainFilter);
+    }
+    return res.json(data);
+  } catch (err) {
+    return res.json([]);
+  }
+});
+
 app.post("/feedback", async (req, res) => {
   try {
     console.log("🔥 HIT /feedback");
     console.log("BODY:", req.body);
     const { rating, message, domain, email, name, order_id } = req.body;
+
+    try {
+      let entries = [];
+      try {
+        const raw = fs.readFileSync(FEEDBACK_LOG_PATH, "utf8");
+        const parsed = JSON.parse(raw);
+        entries = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        entries = [];
+      }
+      entries.push({
+        rating,
+        message,
+        domain,
+        email,
+        name,
+        orderId: order_id,
+        createdAt: new Date().toISOString(),
+      });
+      fs.writeFileSync(FEEDBACK_LOG_PATH, JSON.stringify(entries, null, 2));
+    } catch (err) {
+      console.error("Failed to save feedback");
+    }
 
     const timestamp = new Date().toISOString();
 
@@ -262,6 +365,8 @@ Message: ${message}
 `;
 
     fs.appendFileSync("feedback.txt", log);
+
+    CLIENTS = loadClients();
 
     const client = CLIENTS[domain];
 
