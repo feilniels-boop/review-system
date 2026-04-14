@@ -65,8 +65,16 @@ app.get("/review", (req, res) => {
     const client = CLIENTS[domain];
 
     if (r >= 4) {
-      if (client && client.trustpilot) {
-        return res.redirect(client.trustpilot);
+      let trustpilotUrl = client?.trustpilot;
+
+      if (trustpilotUrl) {
+        if (trustpilotUrl.includes("/review/")) {
+          trustpilotUrl = trustpilotUrl.replace("/review/", "/evaluate/");
+        } else if (!trustpilotUrl.includes("/evaluate/")) {
+          const cleanDomain = domain.replace(/^www\./, "");
+          trustpilotUrl = `https://www.trustpilot.com/evaluate/${cleanDomain}`;
+        }
+        return res.redirect(trustpilotUrl);
       }
       return res.redirect("https://trustpilot.com");
     }
