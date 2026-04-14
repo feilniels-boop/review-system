@@ -1,11 +1,17 @@
+require("dotenv").config();
+
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const { Resend } = require("resend");
 
-require("dotenv").config();
+let resend = null;
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+if (!process.env.RESEND_API_KEY) {
+  console.error("Missing RESEND_API_KEY");
+} else {
+  resend = new Resend(process.env.RESEND_API_KEY);
+}
 
 const CLIENTS_PATH = path.join(__dirname, "../clients.json");
 const FEEDBACK_LOG_PATH = path.join(__dirname, "../feedback.json");
@@ -65,17 +71,10 @@ app.get("/review", (req, res) => {
     const client = CLIENTS[domain];
 
     if (r >= 4) {
-      let trustpilotUrl = client?.trustpilot;
-
-      if (trustpilotUrl) {
-        if (trustpilotUrl.includes("/review/")) {
-          trustpilotUrl = trustpilotUrl.replace("/review/", "/evaluate/");
-        } else if (!trustpilotUrl.includes("/evaluate/")) {
-          const cleanDomain = domain.replace(/^www\./, "");
-          trustpilotUrl = `https://www.trustpilot.com/evaluate/${cleanDomain}`;
-        }
-        return res.redirect(trustpilotUrl);
+      if (client && client.trustpilot) {
+        return res.redirect(client.trustpilot);
       }
+
       return res.redirect("https://trustpilot.com");
     }
 
@@ -387,11 +386,12 @@ Message: ${message}
     try {
       console.log("📧 Sending email to:", recipient);
 
-      const response = await resend.emails.send({
-        from: "onboarding@resend.dev",
-        to: recipient,
-        subject: `New feedback (${rating} stars) from ${domain || "unknown domain"}`,
-        html: `
+      if (resend) {
+        const response = await resend.emails.send({
+          from: "onboarding@resend.dev",
+          to: recipient,
+          subject: `New feedback (${rating} stars) from ${domain || "unknown domain"}`,
+          html: `
   <h2>New Feedback</h2>
   <p><strong>Rating:</strong> ${rating}</p>
   <p><strong>Message:</strong> ${message}</p>
@@ -400,9 +400,10 @@ Message: ${message}
   <p><strong>Email:</strong> ${email || "N/A"}</p>
   <p><strong>Order ID:</strong> ${order_id || "N/A"}</p>
 `,
-      });
+        });
 
-      console.log("✅ Resend response:", response);
+        console.log("✅ Resend response:", response);
+      }
     } catch (err) {
       console.error("❌ Email failed:", err);
     }
