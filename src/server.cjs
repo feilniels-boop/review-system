@@ -158,9 +158,42 @@ app.get("/review", (req, res) => {
 
   <input type="hidden" name="rating" value="${r}" />
   <input type="hidden" name="domain" value="${domainParam}" />
-  <input type="hidden" name="email" id="email" />
-  <input type="hidden" name="name" id="name" />
-  <input type="hidden" name="order_id" id="order_id" />
+  <input type="hidden" name="email" />
+
+  <input
+    type="text"
+    name="name"
+    required
+    placeholder="Dit navn"
+    autocomplete="name"
+    style="
+      width:100%;
+      box-sizing:border-box;
+      padding:12px 14px;
+      margin-bottom:12px;
+      border-radius:12px;
+      border:1px solid #ddd;
+      font-size:14px;
+      outline:none;
+    "
+  />
+
+  <input
+    type="text"
+    name="order_id"
+    placeholder="Ordrenummer (valgfrit)"
+    autocomplete="off"
+    style="
+      width:100%;
+      box-sizing:border-box;
+      padding:12px 14px;
+      margin-bottom:12px;
+      border-radius:12px;
+      border:1px solid #ddd;
+      font-size:14px;
+      outline:none;
+    "
+  />
 
   <textarea 
     name="message"
@@ -218,13 +251,9 @@ app.get("/review", (req, res) => {
 <script>
   const params = new URLSearchParams(window.location.search);
 
-  const email = params.get("email");
-  const name = params.get("name");
-  const orderId = params.get("order_id");
-
-  if (email) document.getElementById("email").value = email;
-  if (name) document.getElementById("name").value = name;
-  if (orderId) document.getElementById("order_id").value = orderId;
+  document.querySelector('input[name="email"]').value = params.get("email") || "";
+  document.querySelector('input[name="name"]').value = params.get("name") || "";
+  document.querySelector('input[name="order_id"]').value = params.get("order_id") || "";
 </script>
 
 </body>
@@ -398,7 +427,22 @@ Message: ${message}
           from: "onboarding@resend.dev",
           to: client.email,
           subject: "New Feedback Received",
-          html: `<p>Rating: ${rating}</p><p>Message: ${message}</p>`,
+          text: `New feedback received:
+
+Rating: ${rating}
+Message: ${message}
+
+Name: ${name || "N/A"}
+Email: ${email || "N/A"}
+Order ID: ${order_id || "N/A"}
+`,
+          html: `<h2>New Feedback</h2>
+<p><strong>Rating:</strong> ${rating}</p>
+<p><strong>Message:</strong> ${message}</p>
+<hr/>
+<p><strong>Name:</strong> ${name || "N/A"}</p>
+<p><strong>Email:</strong> ${email || "N/A"}</p>
+<p><strong>Order ID:</strong> ${order_id || "N/A"}</p>`,
         });
 
         console.log("RESEND RESPONSE:", response);
