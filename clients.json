@@ -2,5 +2,9 @@
   "test.dk": {
     "email": "feilniels@gmail.com",
     "trustpilot": "https://trustpilot.com/review/test.dk"
+  },
+  "jysk.dk": {
+    "email": "feilniels@gmail.com",
+    "trustpilot": "https://dk.trustpilot.com/evaluate/www.jysk.dk"
   }
 }
