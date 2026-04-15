@@ -376,49 +376,35 @@ Message: ${message}
 
     fs.appendFileSync("feedback.txt", log);
 
+    console.log("RAW DOMAIN:", domain);
+    const cleanDomain = (domain || "").replace(/^www\./, "").trim();
+    console.log("CLEAN DOMAIN:", cleanDomain);
+
     CLIENTS = loadClients();
-    const cleanDomain = (domain || "").replace(/^www\./, "");
-
     const client = CLIENTS[cleanDomain];
+    console.log("CLIENT FOUND:", client);
 
-    if (!client) {
-      console.error("❌ Unknown domain:", domain);
-    }
-
-    const recipient = client?.email || process.env.CLIENT_EMAIL;
+    console.log("RESEND KEY EXISTS:", !!process.env.RESEND_API_KEY);
 
     try {
-      console.log("📧 Sending email to:", recipient);
-
-      if (!resend) {
-        console.error("❌ Email skipped: Resend is not initialized");
-      } else if (!recipient) {
-        console.error("❌ Email skipped: no recipient configured");
+      if (!client || !client.email) {
+        console.log("NO CLIENT OR EMAIL FOUND - SKIPPING EMAIL");
       } else {
-        const fromAddress = process.env.RESEND_FROM || "onboarding@resend.dev";
+        console.log("SENDING EMAIL TO:", client.email);
+
+        const resend = new Resend(process.env.RESEND_API_KEY);
+
         const response = await resend.emails.send({
-          from: fromAddress,
-          to: recipient,
-          subject: `New feedback (${rating} stars) from ${domain || "unknown domain"}`,
-          html: `
-  <h2>New Feedback</h2>
-  <p><strong>Rating:</strong> ${rating}</p>
-  <p><strong>Message:</strong> ${message}</p>
-  <p><strong>Domain:</strong> ${domain}</p>
-  <p><strong>Customer:</strong> ${name || "N/A"}</p>
-  <p><strong>Email:</strong> ${email || "N/A"}</p>
-  <p><strong>Order ID:</strong> ${order_id || "N/A"}</p>
-`,
+          from: "onboarding@resend.dev",
+          to: client.email,
+          subject: "New Feedback Received",
+          html: `<p>Rating: ${rating}</p><p>Message: ${message}</p>`,
         });
 
-        if (response?.error) {
-          console.error("❌ Resend API error:", response.error);
-        } else {
-          console.log("✅ Resend response:", response);
-        }
+        console.log("RESEND RESPONSE:", response);
       }
     } catch (err) {
-      console.error("❌ Email failed:", err);
+      console.error("EMAIL ERROR:", err);
     }
 
     return res.redirect("/tak");
