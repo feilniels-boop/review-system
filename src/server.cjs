@@ -51,7 +51,11 @@ app.get("/r", (req, res) => {
   }
 
   if (rating <= 3) {
-    return res.redirect(`/review?rating=${rating}&domain=${domain}`);
+    const { rating, domain, email, name, order_id } = req.query;
+    console.log("Redirecting with query:", { rating, domain, email, name, order_id });
+    return res.redirect(
+      `/review?rating=${rating}&domain=${domain}&email=${email || ""}&name=${name || ""}&order_id=${order_id || ""}`
+    );
   }
 
   return res.redirect(`https://www.trustpilot.com/review/${domain}`);
