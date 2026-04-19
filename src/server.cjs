@@ -18,7 +18,8 @@ const FEEDBACK_LOG_PATH = path.join(__dirname, "../feedback.json");
 
 function loadClients() {
   try {
-    return JSON.parse(fs.readFileSync(CLIENTS_PATH, "utf8"));
+    const raw = fs.readFileSync(CLIENTS_PATH, "utf-8");
+    return JSON.parse(raw);
   } catch (err) {
     console.error("❌ Failed to load clients.json", err);
     return {};
@@ -30,9 +31,9 @@ function saveClients(data) {
 }
 
 function normalizeDomain(domain) {
-  if (!domain) return "";
-  return domain
+  return (domain || "")
     .toLowerCase()
+    .trim()
     .replace(/^https?:\/\//, "")
     .replace(/^www\./, "")
     .split("/")[0];
@@ -48,42 +49,54 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/", (req, res) => res.send("OK"));
 
 app.get("/r", (req, res) => {
-  const rating = parseInt(req.query.rating, 10);
-  const domain = req.query.domain;
+  const { rating, domain, email, name, order_id } = req.query;
 
-  if (!rating || rating < 1 || rating > 5) {
+  const cleanDomain = normalizeDomain(domain);
+  const r = Number(rating);
+
+  console.log("Incoming /r:", { rating, domain, cleanDomain });
+
+  if (!r || isNaN(r) || r < 1 || r > 5) {
     return res.status(400).send("Invalid rating");
   }
 
-  if (!domain) {
+  if (!cleanDomain) {
     return res.status(400).send("Missing domain");
   }
 
-  if (rating <= 3) {
-    const { rating, domain, email, name, order_id } = req.query;
-    console.log("Redirecting with query:", { rating, domain, email, name, order_id });
+  if (r <= 3) {
     return res.redirect(
-      `/review?rating=${rating}&domain=${domain}&email=${email || ""}&name=${name || ""}&order_id=${order_id || ""}`
+      `/review?rating=${r}&domain=${cleanDomain}&email=${encodeURIComponent(email || "")}&name=${encodeURIComponent(name || "")}&order_id=${encodeURIComponent(order_id || "")}`
     );
   }
 
-  return res.redirect(
-    `https://dk.trustpilot.com/evaluate/${normalizeDomain(domain)}`
-  );
+  CLIENTS = loadClients();
+  const client = CLIENTS[cleanDomain];
+
+  if (client && client.trustpilot) {
+    return res.redirect(client.trustpilot);
+  }
+
+  const fallback = `https://dk.trustpilot.com/evaluate/${cleanDomain}`;
+  return res.redirect(fallback);
 });
 
 app.get("/review", (req, res) => {
   try {
-    const query = req.query || {};
     const { rating, domain } = req.query;
     const r = Number(rating);
 
-    if (!r || isNaN(r)) {
+    if (!r || isNaN(r) || r < 1 || r > 5) {
       return res.status(400).send("Invalid rating");
     }
 
-    CLIENTS = loadClients();
     const cleanDomain = normalizeDomain(domain);
+
+    if (!cleanDomain) {
+      return res.status(400).send("Missing domain");
+    }
+
+    CLIENTS = loadClients();
     const client = CLIENTS[cleanDomain];
 
     if (r >= 4) {
@@ -93,14 +106,6 @@ app.get("/review", (req, res) => {
 
       return res.redirect(trustpilotUrl);
     }
-
-    const domainParam =
-      query.domain == null
-        ? ""
-        : Array.isArray(query.domain)
-          ? String(query.domain[0] || "")
-          : String(query.domain);
-    const domainParamNormalized = normalizeDomain(domainParam);
 
     return res.send(`
 
@@ -172,7 +177,7 @@ app.get("/review", (req, res) => {
 <form method="POST" action="/feedback">
 
   <input type="hidden" name="rating" value="${r}" />
-  <input type="hidden" name="domain" value="${domainParamNormalized}" />
+  <input type="hidden" name="domain" value="${cleanDomain}" />
   <input type="hidden" name="email" />
 
   <input
@@ -380,20 +385,29 @@ app.get("/feedbacks", (req, res) => {
 
 app.post("/feedback", async (req, res) => {
   try {
-    console.log("🔥 HIT /feedback");
-    console.log("BODY:", req.body);
     const { rating, message, domain, email, name, order_id } = req.body;
 
-    CLIENTS = loadClients();
     const cleanDomain = normalizeDomain(domain);
+
+    CLIENTS = loadClients();
     const client = CLIENTS[cleanDomain];
 
+    console.log("Feedback received:", {
+      rating,
+      message,
+      domain,
+      cleanDomain,
+      email,
+      name,
+      order_id,
+    });
+
     if (!client) {
-      console.error("Unknown client domain:", cleanDomain);
-      return res.status(400).send("Unknown domain");
+      console.error("Unknown domain:", cleanDomain);
+      return res.status(400).send("Unknown domain: " + cleanDomain);
     }
 
-    const recipientEmail = client.email || "fallback@email.com";
+    const recipientEmail = client.email;
 
     try {
       let entries = [];
@@ -407,7 +421,7 @@ app.post("/feedback", async (req, res) => {
       entries.push({
         rating,
         message,
-        domain,
+        domain: cleanDomain,
         email,
         name,
         orderId: order_id,
@@ -431,46 +445,31 @@ Message: ${message}
 
     fs.appendFileSync("feedback.txt", log);
 
-    console.log("Feedback received:", {
-      rating,
-      domain,
-      cleanDomain,
-      email,
-      name,
-      order_id,
-    });
+    console.log("Sending email to:", recipientEmail);
 
-    try {
-      if (!process.env.RESEND_API_KEY) {
-        console.error("Missing RESEND_API_KEY");
-      } else {
-        const mailer = new Resend(process.env.RESEND_API_KEY);
-
-        console.log("Sending feedback to:", recipientEmail);
-
-        const response = await mailer.emails.send({
-          from: "onboarding@resend.dev",
-          to: recipientEmail,
-          subject: "New Feedback",
-          html: `
-    <p><strong>Rating:</strong> ${rating}</p>
-    <p><strong>Message:</strong> ${message}</p>
-    <p><strong>Name:</strong> ${name}</p>
-    <p><strong>Email:</strong> ${email}</p>
-    <p><strong>Order ID:</strong> ${order_id}</p>
-  `,
-        });
-
-        console.log("RESEND RESPONSE:", response);
-      }
-    } catch (err) {
-      console.error("EMAIL ERROR:", err);
+    if (resend) {
+      await resend.emails.send({
+        from: "Feedback <onboarding@resend.dev>",
+        to: recipientEmail,
+        subject: `New Feedback (${cleanDomain})`,
+        html: `
+        <h2>New Feedback</h2>
+        <p><strong>Rating:</strong> ${rating}</p>
+        <p><strong>Message:</strong> ${message}</p>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Order ID:</strong> ${order_id}</p>
+        <p><strong>Domain:</strong> ${cleanDomain}</p>
+      `,
+      });
+    } else {
+      console.error("Missing RESEND_API_KEY — email not sent");
     }
 
     return res.redirect("/tak");
   } catch (err) {
-    console.error("FEEDBACK ERROR:", err);
-    return res.status(500).send("Noget gik galt");
+    console.error("Feedback error:", err);
+    return res.status(500).send("Server error");
   }
 });
 
