@@ -5,14 +5,6 @@ const path = require("path");
 const fs = require("fs");
 const { Resend } = require("resend");
 
-let resend = null;
-
-if (!process.env.RESEND_API_KEY) {
-  console.error("Missing RESEND_API_KEY");
-} else {
-  resend = new Resend(process.env.RESEND_API_KEY);
-}
-
 const CLIENTS_PATH = path.join(__dirname, "../clients.json");
 const FEEDBACK_LOG_PATH = path.join(__dirname, "../feedback.json");
 
@@ -31,12 +23,17 @@ function saveClients(data) {
 }
 
 function normalizeDomain(domain) {
-  return (domain || "")
-    .toLowerCase()
-    .trim()
+  if (domain == null) return "";
+  let d = Array.isArray(domain) ? domain[0] : domain;
+  d = d.toString().toLowerCase().trim();
+  if (!d) return "";
+  return d
     .replace(/^https?:\/\//, "")
     .replace(/^www\./, "")
-    .split("/")[0];
+    .split("/")[0]
+    .split("?")[0]
+    .split("#")[0]
+    .trim();
 }
 
 let CLIENTS = loadClients();
@@ -390,6 +387,11 @@ app.post("/feedback", async (req, res) => {
     const cleanDomain = normalizeDomain(domain);
 
     CLIENTS = loadClients();
+
+    console.log("RAW domain:", domain);
+    console.log("CLEAN domain:", cleanDomain);
+    console.log("AVAILABLE clients:", Object.keys(CLIENTS));
+
     const client = CLIENTS[cleanDomain];
 
     console.log("Feedback received:", {
@@ -404,7 +406,7 @@ app.post("/feedback", async (req, res) => {
 
     if (!client) {
       console.error("Unknown domain:", cleanDomain);
-      return res.status(400).send("Unknown domain: " + cleanDomain);
+      return res.status(400).send(`Unknown domain: ${cleanDomain}`);
     }
 
     const recipientEmail = client.email;
@@ -445,14 +447,7 @@ Message: ${message}
 
     fs.appendFileSync("feedback.txt", log);
 
-    console.log("Sending email to:", recipientEmail);
-
-    if (resend) {
-      await resend.emails.send({
-        from: "Feedback <onboarding@resend.dev>",
-        to: recipientEmail,
-        subject: `New Feedback (${cleanDomain})`,
-        html: `
+    const html = `
         <h2>New Feedback</h2>
         <p><strong>Rating:</strong> ${rating}</p>
         <p><strong>Message:</strong> ${message}</p>
@@ -460,10 +455,27 @@ Message: ${message}
         <p><strong>Email:</strong> ${email}</p>
         <p><strong>Order ID:</strong> ${order_id}</p>
         <p><strong>Domain:</strong> ${cleanDomain}</p>
-      `,
+      `;
+
+    if (!process.env.RESEND_API_KEY) {
+      console.error("❌ Missing RESEND_API_KEY");
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    try {
+      console.log("📨 Sending email to:", recipientEmail);
+
+      const result = await resend.emails.send({
+        from: "Feedback <onboarding@resend.dev>",
+        to: recipientEmail,
+        subject: "New Feedback",
+        html: html,
       });
-    } else {
-      console.error("Missing RESEND_API_KEY — email not sent");
+
+      console.log("✅ Email sent:", result);
+    } catch (error) {
+      console.error("❌ Email failed:", error);
     }
 
     return res.redirect("/tak");
