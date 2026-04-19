@@ -36,6 +36,16 @@ function normalizeDomain(domain) {
     .trim();
 }
 
+function buildTrustpilotUrl(client, stars) {
+  if (!client) return null;
+  const base = client.trustpilotInvite || client.trustpilot;
+  if (!base) return null;
+  const s = Number(stars);
+  if (!s || isNaN(s) || s < 1 || s > 5) return base;
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}stars=${s}`;
+}
+
 let CLIENTS = loadClients();
 
 const app = express();
@@ -61,21 +71,26 @@ app.get("/r", (req, res) => {
     return res.status(400).send("Missing domain");
   }
 
+  CLIENTS = loadClients();
+  const client = CLIENTS[cleanDomain];
+
+  if (!client) {
+    console.warn("Blocked /r for unauthorized domain:", cleanDomain);
+    return res.redirect("/unknown-domain");
+  }
+
   if (r <= 3) {
     return res.redirect(
       `/review?rating=${r}&domain=${cleanDomain}&email=${encodeURIComponent(email || "")}&name=${encodeURIComponent(name || "")}&order_id=${encodeURIComponent(order_id || "")}`
     );
   }
 
-  CLIENTS = loadClients();
-  const client = CLIENTS[cleanDomain];
-
-  if (client && client.trustpilot) {
-    return res.redirect(client.trustpilot);
+  const trustpilotUrl = buildTrustpilotUrl(client, r);
+  if (trustpilotUrl) {
+    return res.redirect(trustpilotUrl);
   }
 
-  const fallback = `https://dk.trustpilot.com/evaluate/${cleanDomain}`;
-  return res.redirect(fallback);
+  return res.redirect("/unknown-domain");
 });
 
 app.get("/review", (req, res) => {
@@ -96,11 +111,16 @@ app.get("/review", (req, res) => {
     CLIENTS = loadClients();
     const client = CLIENTS[cleanDomain];
 
-    if (r >= 4) {
-      const trustpilotUrl =
-        client?.trustpilot ||
-        `https://dk.trustpilot.com/evaluate/${cleanDomain}`;
+    if (!client) {
+      console.warn("Blocked /review for unauthorized domain:", cleanDomain);
+      return res.redirect("/unknown-domain");
+    }
 
+    if (r >= 4) {
+      const trustpilotUrl = buildTrustpilotUrl(client, r);
+      if (!trustpilotUrl) {
+        return res.redirect("/unknown-domain");
+      }
       return res.redirect(trustpilotUrl);
     }
 
@@ -317,6 +337,84 @@ app.get("/tak", (req, res) => {
   return res.send(thankYouPageHtml);
 });
 
+const unknownDomainPageHtml = `
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tjenesten er ikke tilgængelig</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body style="
+  margin:0;
+  font-family:'Manrope',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+  background:#f4f6f8;
+  padding:24px;
+">
+  <div style="
+    background:white;
+    padding:40px;
+    border-radius:16px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.08);
+    max-width:460px;
+    width:100%;
+    text-align:center;
+    box-sizing:border-box;
+  ">
+    <div style="
+      width:56px;
+      height:56px;
+      border-radius:50%;
+      background:#fff4e5;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      margin-bottom:20px;
+      font-size:28px;
+    ">🔒</div>
+
+    <h1 style="
+      margin:0 0 10px 0;
+      font-size:22px;
+      font-weight:600;
+      letter-spacing:-0.3px;
+      color:#111827;
+    ">
+      Tjenesten er ikke aktiv
+    </h1>
+
+    <p style="
+      margin:0 0 24px 0;
+      font-size:14px;
+      line-height:1.6;
+      color:#6b7280;
+    ">
+      Denne anmeldelses-service er ikke aktiveret for den angivne butik,
+      eller abonnementet er udløbet.<br/>
+      Kontakt butikken direkte, hvis du vil dele din oplevelse.
+    </p>
+
+    <p style="
+      margin:0;
+      font-size:12px;
+      color:#9ca3af;
+    ">
+      Er du butiksejer? Kontakt os for at aktivere tjenesten.
+    </p>
+  </div>
+</body>
+</html>
+`;
+
+app.get("/unknown-domain", (req, res) => {
+  return res.status(403).send(unknownDomainPageHtml);
+});
+
 app.get("/admin", (req, res) => {
   const key = req.query.key;
   if (key !== process.env.ADMIN_KEY) {
@@ -327,7 +425,8 @@ app.get("/admin", (req, res) => {
     <form method="POST" action="/admin?key=${encodeURIComponent(key)}">
       <input name="domain" placeholder="domain (e.g. test.dk)" required />
       <input name="email" placeholder="email" required />
-      <input name="trustpilot" placeholder="trustpilot link" required />
+      <input name="trustpilot" placeholder="trustpilot review page (fallback)" />
+      <input name="trustpilotInvite" placeholder="trustpilot evaluate-link (with hmac)" />
       <button type="submit">Save</button>
     </form>
   `);
@@ -341,7 +440,7 @@ app.post(
     if (key !== process.env.ADMIN_KEY) {
       return res.status(401).send("Unauthorized");
     }
-    const { domain, email, trustpilot } = req.body;
+    const { domain, email, trustpilot, trustpilotInvite } = req.body;
 
     if (!domain || !email) {
       return res.send("Missing fields");
@@ -350,10 +449,10 @@ app.post(
     const clients = loadClients();
     const cleanDomain = normalizeDomain(domain);
 
-    clients[cleanDomain] = {
-      email,
-      trustpilot,
-    };
+    const entry = { email };
+    if (trustpilot) entry.trustpilot = trustpilot;
+    if (trustpilotInvite) entry.trustpilotInvite = trustpilotInvite;
+    clients[cleanDomain] = entry;
 
     saveClients(clients);
 
