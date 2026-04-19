@@ -1,10 +1,10 @@
 {
-  "test.dk": {
-    "email": "feilniels@gmail.com",
-    "trustpilot": "https://trustpilot.com/review/test.dk"
-  },
   "jysk.dk": {
-    "email": "feilniels@gmail.com",
-    "trustpilot": "https://dk.trustpilot.com/evaluate/www.jysk.dk"
+    "email": "feedback@jysk.dk",
+    "trustpilot": "https://dk.trustpilot.com/evaluate/jysk.dk"
+  },
+  "dinbutik.dk": {
+    "email": "kontakt@dinbutik.dk",
+    "trustpilot": "https://dk.trustpilot.com/evaluate/dinbutik.dk"
   }
 }

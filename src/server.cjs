@@ -29,6 +29,15 @@ function saveClients(data) {
   fs.writeFileSync(CLIENTS_PATH, JSON.stringify(data, null, 2));
 }
 
+function normalizeDomain(domain) {
+  if (!domain) return "";
+  return domain
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .split("/")[0];
+}
+
 let CLIENTS = loadClients();
 
 const app = express();
@@ -58,7 +67,9 @@ app.get("/r", (req, res) => {
     );
   }
 
-  return res.redirect(`https://www.trustpilot.com/review/${domain}`);
+  return res.redirect(
+    `https://dk.trustpilot.com/evaluate/${normalizeDomain(domain)}`
+  );
 });
 
 app.get("/review", (req, res) => {
@@ -72,16 +83,15 @@ app.get("/review", (req, res) => {
     }
 
     CLIENTS = loadClients();
-    const cleanDomain = domain.replace(/^www\./, "");
+    const cleanDomain = normalizeDomain(domain);
     const client = CLIENTS[cleanDomain];
 
     if (r >= 4) {
-      if (client && client.trustpilot) {
-        return res.redirect(client.trustpilot);
-      }
+      const trustpilotUrl =
+        client?.trustpilot ||
+        `https://dk.trustpilot.com/evaluate/${cleanDomain}`;
 
-      const fallbackUrl = `https://dk.trustpilot.com/evaluate/www.${cleanDomain}`;
-      return res.redirect(fallbackUrl);
+      return res.redirect(trustpilotUrl);
     }
 
     const domainParam =
@@ -90,6 +100,7 @@ app.get("/review", (req, res) => {
         : Array.isArray(query.domain)
           ? String(query.domain[0] || "")
           : String(query.domain);
+    const domainParamNormalized = normalizeDomain(domainParam);
 
     return res.send(`
 
@@ -161,7 +172,7 @@ app.get("/review", (req, res) => {
 <form method="POST" action="/feedback">
 
   <input type="hidden" name="rating" value="${r}" />
-  <input type="hidden" name="domain" value="${domainParam}" />
+  <input type="hidden" name="domain" value="${domainParamNormalized}" />
   <input type="hidden" name="email" />
 
   <input
@@ -335,7 +346,7 @@ app.post(
     }
 
     const clients = loadClients();
-    const cleanDomain = domain.replace(/^www\./, "");
+    const cleanDomain = normalizeDomain(domain);
 
     clients[cleanDomain] = {
       email,
@@ -373,6 +384,17 @@ app.post("/feedback", async (req, res) => {
     console.log("BODY:", req.body);
     const { rating, message, domain, email, name, order_id } = req.body;
 
+    CLIENTS = loadClients();
+    const cleanDomain = normalizeDomain(domain);
+    const client = CLIENTS[cleanDomain];
+
+    if (!client) {
+      console.error("Unknown client domain:", cleanDomain);
+      return res.status(400).send("Unknown domain");
+    }
+
+    const recipientEmail = client.email || "fallback@email.com";
+
     try {
       let entries = [];
       try {
@@ -409,44 +431,34 @@ Message: ${message}
 
     fs.appendFileSync("feedback.txt", log);
 
-    console.log("RAW DOMAIN:", domain);
-    const cleanDomain = (domain || "").replace(/^www\./, "").trim();
-    console.log("CLEAN DOMAIN:", cleanDomain);
-
-    CLIENTS = loadClients();
-    const client = CLIENTS[cleanDomain];
-    console.log("CLIENT FOUND:", client);
-
-    console.log("RESEND KEY EXISTS:", !!process.env.RESEND_API_KEY);
+    console.log("Feedback received:", {
+      rating,
+      domain,
+      cleanDomain,
+      email,
+      name,
+      order_id,
+    });
 
     try {
-      if (!client || !client.email) {
-        console.log("NO CLIENT OR EMAIL FOUND - SKIPPING EMAIL");
+      if (!process.env.RESEND_API_KEY) {
+        console.error("Missing RESEND_API_KEY");
       } else {
-        console.log("SENDING EMAIL TO:", client.email);
+        const mailer = new Resend(process.env.RESEND_API_KEY);
 
-        const resend = new Resend(process.env.RESEND_API_KEY);
+        console.log("Sending feedback to:", recipientEmail);
 
-        const response = await resend.emails.send({
+        const response = await mailer.emails.send({
           from: "onboarding@resend.dev",
-          to: client.email,
-          subject: "New Feedback Received",
-          text: `New feedback received:
-
-Rating: ${rating}
-Message: ${message}
-
-Name: ${name || "N/A"}
-Email: ${email || "N/A"}
-Order ID: ${order_id || "N/A"}
-`,
-          html: `<h2>New Feedback</h2>
-<p><strong>Rating:</strong> ${rating}</p>
-<p><strong>Message:</strong> ${message}</p>
-<hr/>
-<p><strong>Name:</strong> ${name || "N/A"}</p>
-<p><strong>Email:</strong> ${email || "N/A"}</p>
-<p><strong>Order ID:</strong> ${order_id || "N/A"}</p>`,
+          to: recipientEmail,
+          subject: "New Feedback",
+          html: `
+    <p><strong>Rating:</strong> ${rating}</p>
+    <p><strong>Message:</strong> ${message}</p>
+    <p><strong>Name:</strong> ${name}</p>
+    <p><strong>Email:</strong> ${email}</p>
+    <p><strong>Order ID:</strong> ${order_id}</p>
+  `,
         });
 
         console.log("RESEND RESPONSE:", response);
