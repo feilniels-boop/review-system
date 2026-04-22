@@ -10,5 +10,9 @@
   "test.dk": {
     "email": "feilniels@gmail.com",
     "trustpilot": "https://dk.trustpilot.com/evaluate/test.dk"
+  },
+  "hagro-lighting.dk": {
+    "email": "feilniels@gmail.com",
+    "trustpilot": "https://dk.trustpilot.com/evaluate/hagro-lighting.dk"
   }
 }
