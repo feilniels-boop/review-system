@@ -3,7 +3,7 @@
   =============================================
   Brand:   HAGRO — Lighting since 1984
   Domain:  hagro-lighting.dk   (must exist as a key in clients.json)
-  Vibe:    Scandinavian, premium, warm neutrals, heritage
+  Vibe:    Scandinavian, premium, minimal, warm-neutral
 
   Klaviyo merge tags are already wired. Paste this entire file
   into a Klaviyo HTML block.
@@ -12,47 +12,51 @@
     - Host the HAGRO logo somewhere public (ideally ≥240px wide PNG)
     - Replace the wordmark <td> block with an <img src="..."> tag
 -->
+
+<!-- Optional hover styles for supported clients (Apple Mail, Gmail web, etc.)
+     Email clients that strip <style> will simply fall back to the base look. -->
+<style>
+  .hagro-row {
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .hagro-row:hover {
+    background-color: #f9fafb !important;
+    border-color: #d1d5db !important;
+  }
+</style>
+
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-  style="background:#f5f0e8; padding:40px 16px; font-family:'Helvetica Neue',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+  style="background:#f9fafb; padding:40px 16px; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <tr>
     <td align="center">
 
       <!-- Card -->
-      <table role="presentation" width="580" cellpadding="0" cellspacing="0" border="0"
-        style="max-width:580px; width:100%; background:#ffffff; border-radius:4px; overflow:hidden; box-shadow:0 8px 40px rgba(26,22,15,0.08);">
-
-        <!-- Top accent strip -->
-        <tr>
-          <td style="height:4px; background:#1a1a1a; line-height:4px; font-size:0;">&nbsp;</td>
-        </tr>
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0"
+        style="max-width:520px; width:100%; background:#ffffff; border:1px solid #f1f5f9; border-radius:16px; overflow:hidden;">
 
         <!-- Wordmark -->
         <tr>
-          <td align="center" style="padding:44px 32px 4px 32px;">
-            <div style="font-size:34px; line-height:1; font-weight:700; letter-spacing:8px; color:#1a1a1a;">
+          <td align="center" style="padding:40px 40px 12px 40px;">
+            <div style="font-size:26px; line-height:1; font-weight:500; letter-spacing:6px; color:#111827;">
               HAGRO
             </div>
-            <div style="margin-top:8px; font-size:10px; line-height:1; letter-spacing:3px; color:#8a7d69; text-transform:uppercase;">
+            <div style="margin-top:8px; font-size:10px; line-height:1; letter-spacing:2.5px; color:#9ca3af; text-transform:uppercase;">
               Lighting since 1984
             </div>
           </td>
         </tr>
 
-        <!-- Divider accent -->
+        <!-- Logo divider -->
         <tr>
-          <td align="center" style="padding:22px 0 8px 0;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="width:40px; height:1px; background:#c9a876; line-height:1px; font-size:0;">&nbsp;</td>
-              </tr>
-            </table>
+          <td style="padding:24px 40px 0 40px;">
+            <div style="height:1px; background:#f3f4f6; line-height:1px; font-size:0;">&nbsp;</div>
           </td>
         </tr>
 
         <!-- Headline -->
         <tr>
-          <td align="center" style="padding:8px 40px 4px 40px;">
-            <h1 style="margin:0; font-size:24px; line-height:1.35; font-weight:500; color:#1a1a1a; letter-spacing:-0.2px;">
+          <td align="center" style="padding:32px 40px 12px 40px;">
+            <h1 style="margin:0; font-size:26px; line-height:1.3; font-weight:600; color:#111827; letter-spacing:-0.3px;">
               Hvordan var din oplevelse<br/>med dine nye lamper?
             </h1>
           </td>
@@ -60,8 +64,8 @@
 
         <!-- Subtext -->
         <tr>
-          <td align="center" style="padding:14px 48px 24px 48px;">
-            <p style="margin:0; font-size:14px; line-height:1.65; color:#6b6557;">
+          <td align="center" style="padding:0 48px 32px 48px;">
+            <p style="margin:0; font-size:15px; line-height:1.6; color:#4b5563;">
               Hej {{ person.first_name|default:'' }} — tak fordi du valgte HAGRO.<br/>
               Vi vil rigtig gerne høre, hvad du synes. Klik blot på en af linjerne herunder.
             </p>
@@ -70,27 +74,27 @@
 
         <!-- ===== 5 stars — Fremragende ===== -->
         <tr>
-          <td style="padding:4px 28px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-              style="background:#ffffff; border:1px solid #e8e1d4; border-radius:2px;">
+          <td style="padding:0 32px 8px 32px;">
+            <table role="presentation" class="hagro-row" width="100%" cellpadding="0" cellspacing="0" border="0"
+              style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px;">
               <tr>
-                <td width="44" valign="middle" style="padding:16px 0 16px 20px;">
+                <td width="40" valign="middle" style="padding:18px 0 18px 20px;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=5&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank" style="display:block; text-decoration:none;">
-                    <span style="display:inline-block; width:14px; height:14px; border:1.5px solid #c9a876; border-radius:50%;">&nbsp;</span>
+                    <span style="display:inline-block; width:14px; height:14px; border:1.5px solid #d1d5db; border-radius:50%;">&nbsp;</span>
                   </a>
                 </td>
-                <td valign="middle" style="padding:16px 0;">
+                <td valign="middle" style="padding:18px 0;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=5&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank"
-                     style="display:block; font-size:22px; line-height:1; letter-spacing:2px; color:#00B67A; text-decoration:none; white-space:nowrap;">
+                     style="display:block; font-size:22px; line-height:1; letter-spacing:3px; color:#16a34a; text-decoration:none; white-space:nowrap;">
                     ★★★★★
                   </a>
                 </td>
-                <td valign="middle" align="right" style="padding:16px 20px 16px 0;">
+                <td valign="middle" align="right" style="padding:18px 20px 18px 0;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=5&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank"
-                     style="font-size:13px; color:#1a1a1a; font-weight:500; text-decoration:none; white-space:nowrap; letter-spacing:0.2px;">
+                     style="font-size:14px; color:#111827; font-weight:500; text-decoration:none; white-space:nowrap;">
                     Fremragende
                   </a>
                 </td>
@@ -101,27 +105,27 @@
 
         <!-- ===== 4 stars — Godt ===== -->
         <tr>
-          <td style="padding:6px 28px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-              style="background:#ffffff; border:1px solid #e8e1d4; border-radius:2px;">
+          <td style="padding:0 32px 8px 32px;">
+            <table role="presentation" class="hagro-row" width="100%" cellpadding="0" cellspacing="0" border="0"
+              style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px;">
               <tr>
-                <td width="44" valign="middle" style="padding:16px 0 16px 20px;">
+                <td width="40" valign="middle" style="padding:18px 0 18px 20px;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=4&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank" style="display:block; text-decoration:none;">
-                    <span style="display:inline-block; width:14px; height:14px; border:1.5px solid #c9a876; border-radius:50%;">&nbsp;</span>
+                    <span style="display:inline-block; width:14px; height:14px; border:1.5px solid #d1d5db; border-radius:50%;">&nbsp;</span>
                   </a>
                 </td>
-                <td valign="middle" style="padding:16px 0;">
+                <td valign="middle" style="padding:18px 0;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=4&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank"
-                     style="display:block; font-size:22px; line-height:1; letter-spacing:2px; text-decoration:none; white-space:nowrap;">
-                    <span style="color:#73CF11;">★★★★</span><span style="color:#e8e1d4;">★</span>
+                     style="display:block; font-size:22px; line-height:1; letter-spacing:3px; text-decoration:none; white-space:nowrap;">
+                    <span style="color:#22c55e;">★★★★</span><span style="color:#e5e7eb;">★</span>
                   </a>
                 </td>
-                <td valign="middle" align="right" style="padding:16px 20px 16px 0;">
+                <td valign="middle" align="right" style="padding:18px 20px 18px 0;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=4&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank"
-                     style="font-size:13px; color:#1a1a1a; font-weight:500; text-decoration:none; white-space:nowrap; letter-spacing:0.2px;">
+                     style="font-size:14px; color:#111827; font-weight:500; text-decoration:none; white-space:nowrap;">
                     Godt
                   </a>
                 </td>
@@ -132,27 +136,27 @@
 
         <!-- ===== 3 stars — Gennemsnitligt ===== -->
         <tr>
-          <td style="padding:6px 28px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-              style="background:#ffffff; border:1px solid #e8e1d4; border-radius:2px;">
+          <td style="padding:0 32px 8px 32px;">
+            <table role="presentation" class="hagro-row" width="100%" cellpadding="0" cellspacing="0" border="0"
+              style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px;">
               <tr>
-                <td width="44" valign="middle" style="padding:16px 0 16px 20px;">
+                <td width="40" valign="middle" style="padding:18px 0 18px 20px;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=3&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank" style="display:block; text-decoration:none;">
-                    <span style="display:inline-block; width:14px; height:14px; border:1.5px solid #c9a876; border-radius:50%;">&nbsp;</span>
+                    <span style="display:inline-block; width:14px; height:14px; border:1.5px solid #d1d5db; border-radius:50%;">&nbsp;</span>
                   </a>
                 </td>
-                <td valign="middle" style="padding:16px 0;">
+                <td valign="middle" style="padding:18px 0;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=3&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank"
-                     style="display:block; font-size:22px; line-height:1; letter-spacing:2px; text-decoration:none; white-space:nowrap;">
-                    <span style="color:#FFCE00;">★★★</span><span style="color:#e8e1d4;">★★</span>
+                     style="display:block; font-size:22px; line-height:1; letter-spacing:3px; text-decoration:none; white-space:nowrap;">
+                    <span style="color:#f59e0b;">★★★</span><span style="color:#e5e7eb;">★★</span>
                   </a>
                 </td>
-                <td valign="middle" align="right" style="padding:16px 20px 16px 0;">
+                <td valign="middle" align="right" style="padding:18px 20px 18px 0;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=3&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank"
-                     style="font-size:13px; color:#1a1a1a; font-weight:500; text-decoration:none; white-space:nowrap; letter-spacing:0.2px;">
+                     style="font-size:14px; color:#111827; font-weight:500; text-decoration:none; white-space:nowrap;">
                     Gennemsnitligt
                   </a>
                 </td>
@@ -163,27 +167,27 @@
 
         <!-- ===== 2 stars — Dårligt ===== -->
         <tr>
-          <td style="padding:6px 28px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-              style="background:#ffffff; border:1px solid #e8e1d4; border-radius:2px;">
+          <td style="padding:0 32px 8px 32px;">
+            <table role="presentation" class="hagro-row" width="100%" cellpadding="0" cellspacing="0" border="0"
+              style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px;">
               <tr>
-                <td width="44" valign="middle" style="padding:16px 0 16px 20px;">
+                <td width="40" valign="middle" style="padding:18px 0 18px 20px;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=2&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank" style="display:block; text-decoration:none;">
-                    <span style="display:inline-block; width:14px; height:14px; border:1.5px solid #c9a876; border-radius:50%;">&nbsp;</span>
+                    <span style="display:inline-block; width:14px; height:14px; border:1.5px solid #d1d5db; border-radius:50%;">&nbsp;</span>
                   </a>
                 </td>
-                <td valign="middle" style="padding:16px 0;">
+                <td valign="middle" style="padding:18px 0;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=2&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank"
-                     style="display:block; font-size:22px; line-height:1; letter-spacing:2px; text-decoration:none; white-space:nowrap;">
-                    <span style="color:#FF8622;">★★</span><span style="color:#e8e1d4;">★★★</span>
+                     style="display:block; font-size:22px; line-height:1; letter-spacing:3px; text-decoration:none; white-space:nowrap;">
+                    <span style="color:#f97316;">★★</span><span style="color:#e5e7eb;">★★★</span>
                   </a>
                 </td>
-                <td valign="middle" align="right" style="padding:16px 20px 16px 0;">
+                <td valign="middle" align="right" style="padding:18px 20px 18px 0;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=2&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank"
-                     style="font-size:13px; color:#1a1a1a; font-weight:500; text-decoration:none; white-space:nowrap; letter-spacing:0.2px;">
+                     style="font-size:14px; color:#111827; font-weight:500; text-decoration:none; white-space:nowrap;">
                     Dårligt
                   </a>
                 </td>
@@ -194,27 +198,27 @@
 
         <!-- ===== 1 star — Meget dårligt ===== -->
         <tr>
-          <td style="padding:6px 28px 12px 28px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-              style="background:#ffffff; border:1px solid #e8e1d4; border-radius:2px;">
+          <td style="padding:0 32px 0 32px;">
+            <table role="presentation" class="hagro-row" width="100%" cellpadding="0" cellspacing="0" border="0"
+              style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px;">
               <tr>
-                <td width="44" valign="middle" style="padding:16px 0 16px 20px;">
+                <td width="40" valign="middle" style="padding:18px 0 18px 20px;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=1&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank" style="display:block; text-decoration:none;">
-                    <span style="display:inline-block; width:14px; height:14px; border:1.5px solid #c9a876; border-radius:50%;">&nbsp;</span>
+                    <span style="display:inline-block; width:14px; height:14px; border:1.5px solid #d1d5db; border-radius:50%;">&nbsp;</span>
                   </a>
                 </td>
-                <td valign="middle" style="padding:16px 0;">
+                <td valign="middle" style="padding:18px 0;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=1&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank"
-                     style="display:block; font-size:22px; line-height:1; letter-spacing:2px; text-decoration:none; white-space:nowrap;">
-                    <span style="color:#FF3722;">★</span><span style="color:#e8e1d4;">★★★★</span>
+                     style="display:block; font-size:22px; line-height:1; letter-spacing:3px; text-decoration:none; white-space:nowrap;">
+                    <span style="color:#ef4444;">★</span><span style="color:#e5e7eb;">★★★★</span>
                   </a>
                 </td>
-                <td valign="middle" align="right" style="padding:16px 20px 16px 0;">
+                <td valign="middle" align="right" style="padding:18px 20px 18px 0;">
                   <a href="https://review-system-production-7a34.up.railway.app/r?rating=1&domain=hagro-lighting.dk&email={{ person.email|urlencode }}&name={{ person.first_name|default:''|urlencode }}&order_id={{ event.extra.order_id|default:''|urlencode }}"
                      target="_blank"
-                     style="font-size:13px; color:#1a1a1a; font-weight:500; text-decoration:none; white-space:nowrap; letter-spacing:0.2px;">
+                     style="font-size:14px; color:#111827; font-weight:500; text-decoration:none; white-space:nowrap;">
                     Meget dårligt
                   </a>
                 </td>
@@ -225,8 +229,8 @@
 
         <!-- Hint -->
         <tr>
-          <td align="center" style="padding:18px 48px 8px 48px;">
-            <p style="margin:0; font-size:12px; line-height:1.6; color:#8a7d69;">
+          <td align="center" style="padding:32px 48px 0 48px;">
+            <p style="margin:0; font-size:12px; line-height:1.6; color:#9ca3af;">
               Det tager kun 5 sekunder. Din feedback hjælper os<br/>med at lave endnu bedre belysning.
             </p>
           </td>
@@ -234,15 +238,15 @@
 
         <!-- Divider -->
         <tr>
-          <td style="padding:24px 40px 0 40px;">
-            <hr style="border:none; border-top:1px solid #efe9dc; margin:0;" />
+          <td style="padding:32px 40px 0 40px;">
+            <div style="height:1px; background:#f3f4f6; line-height:1px; font-size:0;">&nbsp;</div>
           </td>
         </tr>
 
-        <!-- Heritage footer -->
+        <!-- Heritage line -->
         <tr>
-          <td align="center" style="padding:22px 40px 10px 40px;">
-            <p style="margin:0; font-size:11px; line-height:1.6; color:#8a7d69; letter-spacing:2px; text-transform:uppercase;">
+          <td align="center" style="padding:24px 40px 8px 40px;">
+            <p style="margin:0; font-size:11px; line-height:1.6; color:#9ca3af; letter-spacing:1.5px; text-transform:uppercase;">
               Over 1 million lamper solgt siden 1984
             </p>
           </td>
@@ -250,9 +254,9 @@
 
         <!-- Footer brand -->
         <tr>
-          <td align="center" style="padding:4px 32px 32px 32px;">
-            <p style="margin:0; font-size:12px; color:#6b6557;">
-              Tak fordi du handler hos <strong style="color:#1a1a1a; letter-spacing:1px;">HAGRO</strong>.
+          <td align="center" style="padding:4px 40px 40px 40px;">
+            <p style="margin:0; font-size:13px; line-height:1.6; color:#6b7280;">
+              Tak fordi du handler hos <span style="color:#111827; letter-spacing:1px;">HAGRO</span>.
             </p>
           </td>
         </tr>
@@ -260,11 +264,11 @@
       </table>
 
       <!-- Unsubscribe -->
-      <table role="presentation" width="580" cellpadding="0" cellspacing="0" border="0" style="max-width:580px; width:100%;">
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0" style="max-width:520px; width:100%;">
         <tr>
-          <td align="center" style="padding:20px 32px; font-size:11px; color:#8a7d69; font-family:'Helvetica Neue',sans-serif;">
+          <td align="center" style="padding:24px 32px; font-size:11px; line-height:1.6; color:#9ca3af; font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
             No longer want to receive these emails?
-            <a href="{% unsubscribe %}" style="color:#8a7d69; text-decoration:underline;">Unsubscribe</a>.<br/>
+            <a href="{% unsubscribe %}" style="color:#9ca3af; text-decoration:underline;">Unsubscribe</a>.<br/>
             {{ organization.name }} · {{ organization.full_address }}
           </td>
         </tr>

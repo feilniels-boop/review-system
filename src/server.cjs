@@ -134,61 +134,88 @@ app.get("/review", (req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Feedback</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    input::placeholder,
+    textarea::placeholder {
+      color:#9ca3af;
+      opacity:1;
+      font-weight:400;
+    }
+  </style>
 </head>
 
 <body style="
   margin:0;
-  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
-  background:#f4f6f8;
+  min-height:100vh;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background:#f3f4f6;
+  color:#111827;
   display:flex;
   align-items:center;
   justify-content:center;
-  height:100vh;
+  padding:32px 16px;
+  box-sizing:border-box;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
 ">
 
   <div style="
-    background:white;
-    padding:40px;
+    background:#ffffff;
+    padding:48px 44px;
     border-radius:16px;
-    box-shadow:0 20px 60px rgba(0,0,0,0.08);
-    max-width:440px;
+    border:1px solid #f1f5f9;
+    box-shadow:0 8px 20px rgba(0,0,0,0.04), 0 2px 6px rgba(0,0,0,0.04);
+    max-width:500px;
     width:100%;
+    box-sizing:border-box;
   ">
 
 <h1 style="
-  font-size:25px;
-  font-weight:600;
-  letter-spacing:-0.3px;
-  margin-bottom:10px;
+  font-size:28px;
+  font-weight:700;
+  letter-spacing:-0.6px;
+  line-height:1.25;
+  color:#111827;
+  margin:0 0 16px 0;
 ">
   Hjælp os med at forbedre din oplevelse
 </h1>
 
 <p style="
   color:#6b7280;
-  font-size:14px;
-  line-height:1.6;
-  margin-bottom:24px;
+  font-size:15px;
+  font-weight:400;
+  line-height:1.65;
+  max-width:420px;
+  margin:0 0 24px 0;
 ">
   Det ser ud til, at din oplevelse ikke var helt som forventet.
   Fortæl os hvad der gik galt — vi læser alt feedback og bruger det aktivt til at forbedre os.
 </p>
 
 <!-- ⭐ STARS -->
-<div style="margin-bottom:10px; font-size:26px; letter-spacing:3px;">
+<div style="
+  display:flex;
+  align-items:center;
+  gap:4px;
+  font-size:32px;
+  line-height:1;
+  margin:0 0 12px 0;
+">
   ${
-    '<span style="color:#f5b301;">★</span>'.repeat(Math.max(0, Math.min(5, r))) +
-    '<span style="color:#e0e0e0;">★</span>'.repeat(5 - Math.max(0, Math.min(5, r)))
+    '<span style="color:#f59e0b; display:inline-block; line-height:1;">★</span>'.repeat(Math.max(0, Math.min(5, r))) +
+    '<span style="color:#e5e7eb; display:inline-block; line-height:1;">★</span>'.repeat(5 - Math.max(0, Math.min(5, r)))
   }
 </div>
 
 <p style="
-  color:#555;
+  color:#6b7280;
   font-size:13px;
-  margin-bottom:20px;
+  font-weight:400;
+  margin:0 0 24px 0;
 ">
-  Du har valgt <strong>${r}</strong> ud af 5 stjerner
+  Du har valgt <strong style="color:#111827; font-weight:600;">${r}</strong> ud af 5 stjerner
 </p>
 
 <form method="POST" action="/feedback">
@@ -206,13 +233,20 @@ app.get("/review", (req, res) => {
     style="
       width:100%;
       box-sizing:border-box;
-      padding:12px 14px;
+      padding:16px 18px;
       margin-bottom:12px;
       border-radius:12px;
-      border:1px solid #ddd;
+      border:1px solid #e5e7eb;
+      background:#ffffff;
+      color:#111827;
+      font-family:inherit;
       font-size:14px;
+      font-weight:500;
       outline:none;
+      transition:border-color 0.15s ease, box-shadow 0.15s ease;
     "
+    onfocus="this.style.borderColor='#111827'; this.style.boxShadow='0 0 0 2px rgba(0,0,0,0.05)'"
+    onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'"
   />
 
   <input
@@ -223,13 +257,20 @@ app.get("/review", (req, res) => {
     style="
       width:100%;
       box-sizing:border-box;
-      padding:12px 14px;
+      padding:16px 18px;
       margin-bottom:12px;
       border-radius:12px;
-      border:1px solid #ddd;
+      border:1px solid #e5e7eb;
+      background:#ffffff;
+      color:#111827;
+      font-family:inherit;
       font-size:14px;
+      font-weight:500;
       outline:none;
+      transition:border-color 0.15s ease, box-shadow 0.15s ease;
     "
+    onfocus="this.style.borderColor='#111827'; this.style.boxShadow='0 0 0 2px rgba(0,0,0,0.05)'"
+    onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'"
   />
 
   <textarea 
@@ -238,36 +279,47 @@ app.get("/review", (req, res) => {
     required
     style="
       width:100%;
-      height:120px;
-      padding:14px;
+      box-sizing:border-box;
+      height:132px;
+      padding:16px 18px;
       border-radius:12px;
-      border:1px solid #ddd;
+      border:1px solid #e5e7eb;
+      background:#ffffff;
+      color:#111827;
+      font-family:inherit;
       font-size:14px;
-      line-height:1.5;
+      font-weight:400;
+      line-height:1.55;
       resize:none;
       outline:none;
-      transition:0.2s;
+      transition:border-color 0.15s ease, box-shadow 0.15s ease;
     "
-    onfocus="this.style.borderColor='#111'; this.style.boxShadow='0 0 0 2px rgba(0,0,0,0.05)'"
-    onblur="this.style.borderColor='#ddd'; this.style.boxShadow='none'"
+    onfocus="this.style.borderColor='#111827'; this.style.boxShadow='0 0 0 2px rgba(0,0,0,0.05)'"
+    onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'"
   ></textarea>
 
   <button type="submit"
     style="
-      margin-top:20px;
+      margin-top:24px;
       width:100%;
-      padding:14px;
+      height:52px;
+      padding:0 16px;
       border:none;
       border-radius:12px;
-      background:#0f172a;
-      color:white;
+      background:linear-gradient(180deg, #0f172a 0%, #111827 100%);
+      color:#ffffff;
+      font-family:inherit;
       font-size:15px;
-      font-weight:500;
+      font-weight:600;
+      letter-spacing:0.1px;
       cursor:pointer;
-      transition:0.2s;
+      box-shadow:0 1px 2px rgba(0,0,0,0.06);
+      transition:all 0.15s ease;
     "
-    onmouseover="this.style.opacity='0.9'"
-    onmouseout="this.style.opacity='1'"
+    onmouseover="this.style.background='linear-gradient(180deg, #1e293b 0%, #111827 100%)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.12)'"
+    onmouseout="this.style.background='linear-gradient(180deg, #0f172a 0%, #111827 100%)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.06)'"
+    onmousedown="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.10)'"
+    onmouseup="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 16px rgba(0,0,0,0.12)'"
   >
     Send din feedback
   </button>
@@ -275,10 +327,12 @@ app.get("/review", (req, res) => {
 </form>
 
 <p style="
-  margin-top:18px;
+  margin:24px 0 0 0;
   font-size:12px;
-  color:#999;
+  font-weight:400;
+  color:#9ca3af;
   text-align:center;
+  line-height:1.5;
 ">
   Fortroligt — vi bruger kun din feedback til at forbedre oplevelsen
 </p>
